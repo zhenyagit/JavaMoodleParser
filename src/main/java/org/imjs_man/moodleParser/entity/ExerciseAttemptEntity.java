@@ -5,18 +5,14 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import java.util.List;
 
-
 @Entity
-public class Person {
+public class ExerciseAttemptEntity {
     @Id
     private long id;
-    private String login;
-    private String password;
-    private String groupName;
+    private int exerciseState;
+    private double exerciseMark;
+    private String comment;
     @OneToMany
-    private List<org.imjs_man.moodleParser.entity.Course> courseList;
-
-
-
+    private List<AnswerFileEntity> answerFileList;
 
 }

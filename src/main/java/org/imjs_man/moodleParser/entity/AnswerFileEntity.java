@@ -4,8 +4,9 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 
 @Entity
-public class QuizAnswer {
+public class AnswerFileEntity {
     @Id
     private long id;
-    private String answerText;
+    private String name;
+    private String linkToFile;
 }

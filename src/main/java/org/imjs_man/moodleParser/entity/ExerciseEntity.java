@@ -6,13 +6,12 @@ import javax.persistence.OneToMany;
 import java.util.List;
 
 @Entity
-public class ExerciseAttempt {
+public class ExerciseEntity {
     @Id
     private long id;
     private int exerciseState;
-    private double exerciseMark;
-    private String comment;
+    private int maxAttempts;
+    private int nowAttempts;
     @OneToMany
-    private List<AnswerFile> answerFileList;
-
+    private List<ExerciseAttemptEntity> exerciseAttemptEntityList;
 }

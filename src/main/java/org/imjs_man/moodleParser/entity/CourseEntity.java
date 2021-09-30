@@ -6,15 +6,13 @@ import javax.persistence.OneToMany;
 import java.util.List;
 
 @Entity
-public class QuizAttempt {
+public class CourseEntity {
     @Id
     private long id;
-    private int attemptState;
-    private double maxMark;
-    private double nowMark;
+    private String name;
     @OneToMany
-    private List<QuizQuestion> quizQuestionList;
-
+    private List<ExerciseEntity> exerciseEntityList;
+    @OneToMany
+    private List<QuizEntity> quizEntityList;
 
 }
-
