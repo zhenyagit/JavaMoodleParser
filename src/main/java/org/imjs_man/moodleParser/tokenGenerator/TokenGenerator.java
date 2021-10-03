@@ -27,7 +27,7 @@ public class TokenGenerator {
         {
             secureRandom.nextBytes(randomBytes);
             newToken = base64Encoder.encodeToString(randomBytes);
-            if(personRepository.findByToken(newToken) == null) {checkTokenExist = false;}
+            if(personRepository.findByToken(newToken) == null) {checkTokenExist = false;} //fixme use service
         }
 
         return newToken;

@@ -8,6 +8,10 @@ import org.imjs_man.moodleParser.repository.PersonRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service
 public class PersonService {
 
@@ -19,5 +23,23 @@ public class PersonService {
     public String auth(AuthForm authForm) throws CantAuthoriseInMoodle {
             return moodleParser.auth(authForm.getUsername(), authForm.getPassword());
     }
+    public Boolean checkToken(String token)
+    {
+        return personRepository.findByToken(token) != null;
+    }
+    public Boolean checkId(Integer id)
+    {
+        return personRepository.findById(id) != null;
+    }
+    public Map<String,String> getPersonsToParse()
+    {
+        Map<String,String> logPassList = new HashMap<>();
+        for (PersonEntity person: personRepository.findAll())
+        {
+            logPassList.put(person.getLogin(), person.getPassword());
+        }
+        return logPassList;
+    }
+
 
 }
