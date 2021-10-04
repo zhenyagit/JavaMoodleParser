@@ -1,11 +1,10 @@
 package org.imjs_man.moodleParser.parser;
 
 import org.imjs_man.moodleParser.entity.CourseEntity;
+import org.imjs_man.moodleParser.entity.ExerciseEntity;
 import org.imjs_man.moodleParser.entity.PersonEntity;
-import org.imjs_man.moodleParser.exception.CantAuthoriseInMoodle;
-import org.imjs_man.moodleParser.exception.CantGetAuthoriseToken;
-import org.imjs_man.moodleParser.exception.CantGetPersonInfo;
-import org.imjs_man.moodleParser.exception.PersonAlreadyExist;
+import org.imjs_man.moodleParser.entity.QuizEntity;
+import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.repository.PersonRepository;
 import org.imjs_man.moodleParser.service.CourseService;
 import org.imjs_man.moodleParser.service.PersonService;
@@ -32,7 +31,10 @@ import java.util.Objects;
 @Component
 @EnableScheduling
 public class MoodleParser {
-    //todo add exeptions, static or anything else
+    //todo add exceptions, static or anything else
+    //todo start parsing with text and marks than parse all peoples
+    //fixme check all exception text
+    //fixme check all private public
 
     @Autowired
     TokenGenerator tokenGenerator;
@@ -42,6 +44,7 @@ public class MoodleParser {
     PersonService personService;
     @Autowired
     CourseService courseService;
+
     @Scheduled(fixedDelay = 10000)
     public void AutoParseCourses()
     {
@@ -52,7 +55,7 @@ public class MoodleParser {
                 List<CourseEntity> onePeopleCourses = getParsedCoursesList(getRawCoursesList(authData.getKey(),authData.getValue()));
                 allCourses.remove(onePeopleCourses);
                 allCourses.addAll(onePeopleCourses);
-            } catch (ParseException | IOException e) {
+            } catch (ParseException | CantGetCoursesList e) {
                 e.printStackTrace();
             }
         }
@@ -89,9 +92,10 @@ public class MoodleParser {
             throw new CantGetAuthoriseToken("Error token");
         }
     }
-    private PersonEntity getPersonInfo(MoodleAuthToken authToken, String personLogin, String personPassword) throws CantGetPersonInfo, PersonAlreadyExist {
+    private AuthData getAuthData(String personLogin, String personPassword) throws CantGetPersonInfo {
         try {
-            Document mainPageData = Jsoup.connect("https://aid.main.tpu.ru/sso/auth")
+            MoodleAuthToken authToken = getAuthToken();
+            Connection.Response res = Jsoup.connect("https://aid.main.tpu.ru/sso/auth")
                     .data("v", authToken.getV())
                     .data("site2pstoretoken", authToken.getSite2pstoretoken())
                     .data("locale", authToken.getLocale())
@@ -100,9 +104,24 @@ public class MoodleParser {
                     .data("password", personPassword)
                     .data("domen", "main")
                     .userAgent("Mozilla")
-                    .cookie("auth", "token")
                     .timeout(300000)
-                    .post();
+                    .method(Connection.Method.POST)
+                    .execute();
+            AuthData authData = new AuthData();
+            authData.setMainPageData(res.parse());
+            authData.setMainPageDataParsed(authData.getMainPageData().toString());
+            authData.setSessKey(findSessKey(authData.getMainPageDataParsed()));
+            authData.setAuth_ldapossoCookie(res.cookie("auth_ldaposso_authprovider"));
+            authData.setMoodleSessionCookie(res.cookie("MoodleSession"));
+            if(authData.getAuth_ldapossoCookie().length()==0 || authData.getMoodleSessionCookie().length()==0) throw new EmptyAuthCookie("Empty cookie");
+            return authData;
+        } catch (IOException | CantGetAuthoriseToken | EmptyAuthCookie | CantFindSessKey e) {
+            throw new CantGetPersonInfo(e.getMessage());
+        }
+    }
+    private PersonEntity getPersonInfo(String personLogin, String personPassword) throws CantGetPersonInfo {
+        try {
+            Document mainPageData = getAuthData(personLogin, personPassword).getMainPageData();
             Elements mainPageDivs = mainPageData.select("div");
             Element loginInfoElem = null;
             Element uservisibilityElem = null;
@@ -132,36 +151,26 @@ public class MoodleParser {
             newPerson.setGroupName(personGroupName);
             newPerson.setPassword(personPassword);
             newPerson.setLogin(personLogin);
-            PersonEntity tempPerson = personRepository.findById(userId);
-            if (tempPerson!=null) {throw new PersonAlreadyExist(personRepository.findById(userId).getToken());}//fixme use service
+            if (personService.checkId(userId)) {throw new PersonAlreadyExist(personService.getTokenById(userId));}
             else {
                 String generatedToken = tokenGenerator.generateNewToken();
                 newPerson.setToken(generatedToken);
             }
             return newPerson;
-        }
-        catch (IOException e)
-        {
-            throw new CantGetPersonInfo("Error person info");
+        } catch (CantGetPersonInfo | NumberFormatException | PersonAlreadyExist e) {
+            throw new CantGetPersonInfo(e.getMessage());
         }
     }
 
-    public String auth(String login, String password) throws CantAuthoriseInMoodle {
-//        fixme return person
+    public PersonEntity auth(String login, String password) throws CantAuthoriseInMoodle {
         try{
-            MoodleAuthToken authToken = getAuthToken();
-            PersonEntity personInfo = getPersonInfo(authToken, login, password);
-            personRepository.save(personInfo);
-            return personInfo.getToken();
+            return getPersonInfo(login, password);
         }
-        catch (CantGetAuthoriseToken | CantGetPersonInfo e) {throw new CantAuthoriseInMoodle(e.getMessage());}
-        catch (PersonAlreadyExist e) {return e.getMessage();}
+        catch (CantGetPersonInfo e) {throw new CantAuthoriseInMoodle(e.getMessage());}
     }
 
 
-    public String findSessKey(String mainText)
-    {
-//        todo cant find key exeption
+    public String findSessKey(String mainText) throws CantFindSessKey {
         char[] words = mainText.toCharArray();
         int startIndex = mainText.indexOf("sesskey=");
         StringBuilder sesskeyBytes = new StringBuilder();
@@ -169,70 +178,39 @@ public class MoodleParser {
         {
             sesskeyBytes.append(words[startIndex + 8 + i]);
         }
+        if (sesskeyBytes.length()==0) throw new CantFindSessKey("Can`t find session key");
         return sesskeyBytes.toString();
     }
 
-    public String getRawCoursesList(String login, String password) throws IOException {
-        Document tokensData = Jsoup.connect("https://stud.lms.tpu.ru/login/index.php")
-                .data("authSSO","OSSO")
-                .data("query", "Java")
-                .userAgent("Mozilla")
-                .cookie("auth", "token")
-                .timeout(30000)
-                .get();
-        Elements inps = tokensData.select("input");
-        String value_v = "";
-        String value_token = "";
-        String value_locale = "";
-        String value_app = "";
-        for (Element inp : inps) {
-            if (inp.attr("name").equals("v")) value_v = inp.attr("value");
-            if (inp.attr("name").equals("site2pstoretoken")) value_token = inp.attr("value");
-            if (inp.attr("name").equals("locale")) value_locale = inp.attr("value");
-            if (inp.attr("name").equals("appctx")) value_app = inp.attr("value");
+    public String getRawCoursesList(String login, String password) throws CantGetCoursesList {
+        try {
+            AuthData authData = getAuthData(login, password);
+            String mainPageData = authData.getMainPageDataParsed();
+            String sessKey = findSessKey(mainPageData);
+            String auth_ldapossoCookie = authData.getAuth_ldapossoCookie();
+            String moodleSessionCookie = authData.getMoodleSessionCookie();
+            String jsonRequest = "[{\"index\":0,\"methodname\":\"core_course_get_enrolled_courses_by_timeline_classification\",\"args\":{\"offset\":0,\"limit\":0,\"classification\":\"all\",\"sort\":\"fullname\",\"customfieldname\":\"\",\"customfieldvalue\":\"\"}}]";
+            Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/lib/ajax/service.php")
+                    .data("sesskey", sessKey)
+                    .data("info", "core_calendar_get_calendar_monthly_view")
+                    .followRedirects(true)
+                    .ignoreHttpErrors(true)
+                    .ignoreContentType(true)
+                    .userAgent("Mozilla")
+                    .cookie("_ga", "GA1.2.653870628.1616950848")
+                    .cookie("_ym_d", "1617257634")
+                    .cookie("_ym_uid", "161725763494258622")
+                    .cookie("auth_ldaposso_authprovider", auth_ldapossoCookie)
+                    .cookie("MoodleSession", moodleSessionCookie)
+                    .method(Connection.Method.POST)
+                    .requestBody(jsonRequest)
+                    .maxBodySize(1_000_000 * 30)
+                    .timeout(300000)
+                    .execute();
+            return jsonResponse.body();
+        } catch (CantGetPersonInfo | IOException | CantFindSessKey e) {
+            throw new CantGetCoursesList(e.getMessage());
         }
-        Connection.Response res = Jsoup.connect("https://aid.main.tpu.ru/sso/auth")
-                .data("v", value_v)
-                .data("site2pstoretoken", value_token)
-                .data("locale", value_locale)
-                .data("appctx", value_app)
-                .data("ssousername", login)
-                .data("password", password)
-                .data("domen", "main")
-                .userAgent("Mozilla")
-                .timeout(300000)
-                .method(Connection.Method.POST)
-                .execute();
-
-        String mainPageData = res.parse().toString();
-        String sessKey = findSessKey(mainPageData);
-        String auth_ldapossoCookie = res.cookie("auth_ldaposso_authprovider");
-        String moodleSessionCookie = res.cookie("MoodleSession");
-        assert auth_ldapossoCookie != null;
-        assert moodleSessionCookie != null;
-//        todo it must be catched
-//        System.out.println(res.cookies());
-
-        String jsonRequest = "[{\"index\":0,\"methodname\":\"core_course_get_enrolled_courses_by_timeline_classification\",\"args\":{\"offset\":0,\"limit\":0,\"classification\":\"all\",\"sort\":\"fullname\",\"customfieldname\":\"\",\"customfieldvalue\":\"\"}}]";
-        Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/lib/ajax/service.php")
-                .data("sesskey", sessKey)
-                .data("info", "core_calendar_get_calendar_monthly_view")
-                .followRedirects(true)
-                .ignoreHttpErrors(true)
-                .ignoreContentType(true)
-                .userAgent("Mozilla")
-                .cookie("_ga", "GA1.2.653870628.1616950848")
-                .cookie("_ym_d", "1617257634")
-                .cookie("_ym_uid", "161725763494258622")
-                .cookie("auth_ldaposso_authprovider", auth_ldapossoCookie)
-                .cookie("MoodleSession", moodleSessionCookie)
-                .method(Connection.Method.POST)
-                .requestBody(jsonRequest)
-                .maxBodySize(1_000_000 * 30)
-                .timeout(300000)
-                .execute();
-        return jsonResponse.body();
-
     }
     public List<CourseEntity> getParsedCoursesList(String jsonResponse) throws ParseException {
         JSONArray jsonparsedresponse = (JSONArray) new JSONParser().parse(jsonResponse);
@@ -260,6 +238,97 @@ public class MoodleParser {
             courseList.add(course);
         }
         return courseList;
+    }
+    public String getTypeFromInstanceURL(String url)
+    {
+        //todo exception
+        String[] parseUrl= url.split("/");
+        return parseUrl[parseUrl.length-2];
+    }
+    public long geIdeFromInstanceURL(String url)
+    {
+        //todo exception
+        String[] parseUrl= url.split("/");
+        String lastWord = parseUrl[parseUrl.length-1];
+        char[] words = lastWord.toCharArray();
+        int startIndex = lastWord.indexOf("id=");
+        StringBuilder sesskeyBytes = new StringBuilder();
+        for (int i = startIndex + 3; i < lastWord.length(); i++)
+        {
+            sesskeyBytes.append(words[i]);
+        }
+        return Long.parseLong(sesskeyBytes.toString());
+    }
+
+    public void parseActivityInstances(List<ActivityInstance> activityInstances)
+    {
+        for (ActivityInstance activityInstance : activityInstances)
+        {
+            //todo instance type can be book,resource,url,page,forum,glossary
+            switch (activityInstance.getType()) {
+                case ("quiz"):
+                    //fixme if exist
+                    QuizEntity quizEntity = new QuizEntity();
+                    quizEntity.setId(activityInstance.getId());
+                    quizEntity.setName(activityInstance.getText());
+                    quizEntity.setHref(activityInstance.getHref());
+                    //todo add to db, add to user
+                    break;
+                case ("assign"):
+                    ExerciseEntity exerciseEntity = new ExerciseEntity();
+                    exerciseEntity.setId(activityInstance.getId());
+                    exerciseEntity.setName(activityInstance.getText());
+                    exerciseEntity.setHref(activityInstance.getHref());
+                    break;
+            }
+
+        }
+    }
+
+    public List<ActivityInstance> getActivityInstanceFromCourse(String login, String password, String courseId) throws CantGetActivityInstance {
+        try {
+            AuthData authData = getAuthData(login, password);
+            Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/course/view.php")
+                    .data("id", courseId)
+                    .followRedirects(true)
+                    .ignoreHttpErrors(true)
+                    .ignoreContentType(true)
+                    .userAgent("Mozilla")
+                    .cookie("_ga", "GA1.2.653870628.1616950848")
+                    .cookie("_ym_d", "1617257634")
+                    .cookie("_ym_uid", "161725763494258622")
+                    .cookie("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie())
+                    .cookie("MoodleSession", authData.getMoodleSessionCookie())
+                    .method(Connection.Method.POST)
+                    .maxBodySize(1_000_000 * 30)
+                    .timeout(300000)
+                    .execute();
+            Elements activities = jsonResponse.parse().getElementsByClass("activityinstance");
+            System.out.println(activities);
+            List<ActivityInstance> activityInstances = new ArrayList<>();
+            for(Element activity: activities)
+            {
+                Element aalink = activity.getElementsByClass("aalink").first();
+                Element activityicon = activity.getElementsByClass("conlarge activityicon").first();
+                Element instancename = activity.getElementsByClass("instancename").first();
+                if (aalink==null) throw new CantFindAalinkInInstance("Can`t find aalink");
+                if (activityicon==null) throw new CantFindImgInInstance("Can`t find img");
+                if (instancename==null) throw new CantFindNameInInstance("Can`t find name");
+                String href = aalink.attr("href");
+                ActivityInstance tempActivity = new ActivityInstance();
+                tempActivity.setHref(href);
+                tempActivity.setIconSrc(activityicon.attr("src"));
+                tempActivity.setText(instancename.text());
+                tempActivity.setType(getTypeFromInstanceURL(href));
+                tempActivity.setId(geIdeFromInstanceURL(href));
+                activityInstances.add(tempActivity);
+            }
+            return activityInstances;
+        }
+        catch (CantGetPersonInfo | IOException | CantFindAalinkInInstance | CantFindImgInInstance | CantFindNameInInstance e)
+        {
+            throw new CantGetActivityInstance(e.getMessage());
+        }
     }
 
 

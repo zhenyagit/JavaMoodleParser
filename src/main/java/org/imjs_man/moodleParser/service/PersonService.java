@@ -20,8 +20,15 @@ public class PersonService {
     @Autowired
     private MoodleParser moodleParser;
 
-    public String auth(AuthForm authForm) throws CantAuthoriseInMoodle {
-            return moodleParser.auth(authForm.getUsername(), authForm.getPassword());
+    public String auth(AuthForm authForm) throws CantAuthoriseInMoodle
+    {
+        PersonEntity newPerson = moodleParser.auth(authForm.getUsername(), authForm.getPassword());
+        personRepository.save(newPerson);
+        return newPerson.getToken();
+    }
+    public String getTokenById(long id)
+    {
+        return personRepository.findById(id).getToken();
     }
     public Boolean checkToken(String token)
     {

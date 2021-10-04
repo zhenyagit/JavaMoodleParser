@@ -2,6 +2,7 @@ package org.imjs_man.moodleParser.service;
 
 import org.imjs_man.moodleParser.entity.CourseEntity;
 import org.imjs_man.moodleParser.entity.PersonEntity;
+import org.imjs_man.moodleParser.exception.CantGetCoursesList;
 import org.imjs_man.moodleParser.parser.MoodleParser;
 import org.imjs_man.moodleParser.repository.CourseRepository;
 import org.imjs_man.moodleParser.repository.PersonRepository;
@@ -27,7 +28,7 @@ public class CourseService {
         return courseRepository.findById(id) != null;
     }
 
-    public void loadCoursesByToken(String token) throws IOException, ParseException {
+    public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
         PersonEntity temp = personRepository.findByToken(token);
         List<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
         courseRepository.saveAll(courses);
