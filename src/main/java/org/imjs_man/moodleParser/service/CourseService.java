@@ -11,7 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 @Service
@@ -24,21 +27,24 @@ public class CourseService {
     @Autowired
     private MoodleParser moodleParser;
 
-    public Boolean checkId(Integer id) {
+    public Boolean checkId(long id) {
         return courseRepository.findById(id) != null;
     }
-
     public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
         PersonEntity temp = personRepository.findByToken(token);
-        List<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
+        Set<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
         courseRepository.saveAll(courses);
     }
-    public void saveMany(List<CourseEntity> newPersons)
+    public void saveMany(Set<CourseEntity> newCourses)
     {
-        courseRepository.saveAll(newPersons);
+        courseRepository.saveAll(newCourses);
     }
     public List<CourseEntity> getAllCourses()
     {
         return (List<CourseEntity>) courseRepository.findAll();
+    }
+    public void saveCourse(CourseEntity courseEntity)
+    {
+        courseRepository.save(courseEntity);
     }
 }

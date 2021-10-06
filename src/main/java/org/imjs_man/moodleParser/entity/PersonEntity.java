@@ -1,9 +1,8 @@
 package org.imjs_man.moodleParser.entity;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
 import java.util.List;
+import java.util.Set;
 
 
 @Entity
@@ -18,8 +17,8 @@ public class PersonEntity {
     private String surname;
     private String patronymic;
 
-    @OneToMany
-    private List<CourseEntity> courseEntityList;
+    @ManyToMany(fetch = FetchType.EAGER)
+    private Set<CourseEntity> courseEntityList;
 
     public long getId() {
         return id;
@@ -85,11 +84,15 @@ public class PersonEntity {
         this.token = token;
     }
 
-    public List<CourseEntity> getCourseEntityList() {
+    public Set<CourseEntity> getCourseEntityList() {
         return courseEntityList;
     }
 
-    public void setCourseEntityList(List<CourseEntity> courseEntityList) {
+    public void addCourseEntityList(Set<CourseEntity> newCourses)
+    {
+        this.courseEntityList.addAll(newCourses);
+    }
+    public void setCourseEntityList(Set<CourseEntity> courseEntityList) {
         this.courseEntityList = courseEntityList;
     }
 }

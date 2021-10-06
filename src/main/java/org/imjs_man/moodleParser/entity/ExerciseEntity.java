@@ -2,6 +2,7 @@ package org.imjs_man.moodleParser.entity;
 
 import javax.persistence.*;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 public class ExerciseEntity {
@@ -13,8 +14,18 @@ public class ExerciseEntity {
     private String exerciseText;
     private String name;
     private String href;
-    @OneToMany
-    private List<ExerciseAttemptEntity> exerciseAttemptEntityList;
+    @ManyToOne
+    private CourseEntity courseEntity;
+    @OneToMany(fetch = FetchType.EAGER)
+    private Set<ExerciseAttemptEntity> exerciseAttemptEntityList;
+
+    public CourseEntity getCourseEntity() {
+        return courseEntity;
+    }
+
+    public void setCourseEntity(CourseEntity courseEntity) {
+        this.courseEntity = courseEntity;
+    }
 
     public long getId() {
         return id;
@@ -56,11 +67,11 @@ public class ExerciseEntity {
         this.href = href;
     }
 
-    public List<ExerciseAttemptEntity> getExerciseAttemptEntityList() {
+    public Set<ExerciseAttemptEntity> getExerciseAttemptEntityList() {
         return exerciseAttemptEntityList;
     }
 
-    public void setExerciseAttemptEntityList(List<ExerciseAttemptEntity> exerciseAttemptEntityList) {
+    public void setExerciseAttemptEntityList(Set<ExerciseAttemptEntity> exerciseAttemptEntityList) {
         this.exerciseAttemptEntityList = exerciseAttemptEntityList;
     }
 }

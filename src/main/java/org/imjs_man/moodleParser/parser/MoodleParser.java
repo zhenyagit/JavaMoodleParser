@@ -7,7 +7,9 @@ import org.imjs_man.moodleParser.entity.QuizEntity;
 import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.repository.PersonRepository;
 import org.imjs_man.moodleParser.service.CourseService;
+import org.imjs_man.moodleParser.service.ExerciseService;
 import org.imjs_man.moodleParser.service.PersonService;
+import org.imjs_man.moodleParser.service.QuizService;
 import org.imjs_man.moodleParser.tokenGenerator.TokenGenerator;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -23,10 +25,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Component
 @EnableScheduling
@@ -35,39 +34,56 @@ public class MoodleParser {
     //todo start parsing with text and marks than parse all peoples
     //fixme check all exception text
     //fixme check all private public
+    //fixme too many timeout, go into while
 
     @Autowired
     TokenGenerator tokenGenerator;
     @Autowired
-    PersonRepository personRepository;
-    @Autowired
     PersonService personService;
     @Autowired
     CourseService courseService;
+    @Autowired
+    QuizService quizService;
+    @Autowired
+    ExerciseService exerciseService;
 
     @Scheduled(fixedDelay = 10000)
     public void AutoParseCourses()
     {
-        List<CourseEntity> allCourses = new ArrayList<>(courseService.getAllCourses());
-        for (Map.Entry<String, String> authData : personService.getPersonsToParse().entrySet())
+        for (PersonEntity person : personService.getPersonsToParse())
         {
             try {
-                List<CourseEntity> onePeopleCourses = getParsedCoursesList(getRawCoursesList(authData.getKey(),authData.getValue()));
-                allCourses.remove(onePeopleCourses);
-                allCourses.addAll(onePeopleCourses);
-            } catch (ParseException | CantGetCoursesList e) {
+                Set<CourseEntity> newCourses = getParsedCoursesList(getRawCoursesList(person.getLogin(),person.getPassword()));
+                courseService.saveMany(newCourses);
+                person.addCourseEntityList(newCourses);
+                personService.savePerson(person);
+                List<CourseEntity> allCourses = courseService.getAllCourses();
+                for(CourseEntity course: allCourses)
+                {
+                    QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(person.getLogin(),person.getPassword(),course.getId()));
+                    Set<QuizEntity> quizEntities = quiExeLists.quizes;
+                    Set<ExerciseEntity> exerciseEntities = quiExeLists.exercises;
+                    quizService.setManyParent(quizEntities, course);
+                    quizService.saveAll(quizEntities);
+                    exerciseService.setManyParent(exerciseEntities, course);
+                    exerciseService.saveAll(exerciseEntities);
+                    course.addQuizEntityList(quizEntities);
+                    course.addExerciseEntityList(exerciseEntities);
+                    courseService.saveCourse(course);
+                }
+            } catch (ParseException | CantGetCoursesList | CantGetActivityInstance e) {
                 e.printStackTrace();
             }
         }
-        courseService.saveMany(allCourses);
     }
+
     private MoodleAuthToken getAuthToken() throws CantGetAuthoriseToken {
         try {
             Document tokensData = Jsoup.connect("https://stud.lms.tpu.ru/login/index.php?authSSO=OSSO")
                     .data("query", "Java")
                     .userAgent("Mozilla")
                     .cookie("auth", "token")
-                    .timeout(3000)
+                    .timeout(30000)
                     .get();
             Elements inputs = tokensData.select("input");
             String value_v = "";
@@ -212,13 +228,13 @@ public class MoodleParser {
             throw new CantGetCoursesList(e.getMessage());
         }
     }
-    public List<CourseEntity> getParsedCoursesList(String jsonResponse) throws ParseException {
+    public Set<CourseEntity> getParsedCoursesList(String jsonResponse) throws ParseException {
         JSONArray jsonparsedresponse = (JSONArray) new JSONParser().parse(jsonResponse);
         JSONObject tempObj =  (JSONObject) jsonparsedresponse.get(0);
 //        System.out.println(tempObj);
         tempObj =  (JSONObject) tempObj.get("data");
         JSONArray tempArr =  (JSONArray) tempObj.get("courses");
-        ArrayList<CourseEntity> courseList = new ArrayList<>();
+        Set<CourseEntity> courseList = new HashSet<>();
         for (Object o : tempArr) {
             JSONObject courseJson = (JSONObject) o;
             CourseEntity course = new CourseEntity();
@@ -260,36 +276,50 @@ public class MoodleParser {
         return Long.parseLong(sesskeyBytes.toString());
     }
 
-    public void parseActivityInstances(List<ActivityInstance> activityInstances)
+    public QuiExeLists getParsedActivityInstances(Set<ActivityInstance> activityInstances)
     {
+        QuiExeLists listQuizExercise = new QuiExeLists();
+        Set<QuizEntity> quizEntities = new HashSet<>();
+        Set<ExerciseEntity> exerciseEntities = new HashSet<>();
         for (ActivityInstance activityInstance : activityInstances)
         {
             //todo instance type can be book,resource,url,page,forum,glossary
             switch (activityInstance.getType()) {
                 case ("quiz"):
-                    //fixme if exist
-                    QuizEntity quizEntity = new QuizEntity();
-                    quizEntity.setId(activityInstance.getId());
-                    quizEntity.setName(activityInstance.getText());
-                    quizEntity.setHref(activityInstance.getHref());
-                    //todo add to db, add to user
-                    break;
+                    if (quizService.checkId(activityInstance.getId()))
+                        break;
+                    else {
+                        QuizEntity quizEntity = new QuizEntity();
+                        quizEntity.setId(activityInstance.getId());
+                        quizEntity.setName(activityInstance.getText());
+                        quizEntity.setHref(activityInstance.getHref());
+                        quizEntities.add(quizEntity);
+                        //todo add to db, add to user
+                        break;
+                    }
                 case ("assign"):
-                    ExerciseEntity exerciseEntity = new ExerciseEntity();
-                    exerciseEntity.setId(activityInstance.getId());
-                    exerciseEntity.setName(activityInstance.getText());
-                    exerciseEntity.setHref(activityInstance.getHref());
-                    break;
+                    if (exerciseService.checkId(activityInstance.getId()))
+                        break;
+                    else {
+                        ExerciseEntity exerciseEntity = new ExerciseEntity();
+                        exerciseEntity.setId(activityInstance.getId());
+                        exerciseEntity.setName(activityInstance.getText());
+                        exerciseEntity.setHref(activityInstance.getHref());
+                        exerciseEntities.add(exerciseEntity);
+                        break;
+                    }
             }
-
         }
+        listQuizExercise.quizes = quizEntities;
+        listQuizExercise.exercises = exerciseEntities;
+        return listQuizExercise;
     }
 
-    public List<ActivityInstance> getActivityInstanceFromCourse(String login, String password, String courseId) throws CantGetActivityInstance {
+    public Set<ActivityInstance> getActivityInstanceFromCourse(String login, String password, long courseId) throws CantGetActivityInstance {
         try {
             AuthData authData = getAuthData(login, password);
             Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/course/view.php")
-                    .data("id", courseId)
+                    .data("id", Long.toString(courseId))
                     .followRedirects(true)
                     .ignoreHttpErrors(true)
                     .ignoreContentType(true)
@@ -304,28 +334,34 @@ public class MoodleParser {
                     .timeout(300000)
                     .execute();
             Elements activities = jsonResponse.parse().getElementsByClass("activityinstance");
-            System.out.println(activities);
-            List<ActivityInstance> activityInstances = new ArrayList<>();
+//            System.out.println(activities);
+            Set<ActivityInstance> activityInstances = new HashSet<>();
             for(Element activity: activities)
             {
                 Element aalink = activity.getElementsByClass("aalink").first();
                 Element activityicon = activity.getElementsByClass("conlarge activityicon").first();
+                if (activityicon==null) activityicon = activity.getElementsByClass("iconlarge activityicon").first();
                 Element instancename = activity.getElementsByClass("instancename").first();
-                if (aalink==null) throw new CantFindAalinkInInstance("Can`t find aalink");
-                if (activityicon==null) throw new CantFindImgInInstance("Can`t find img");
-                if (instancename==null) throw new CantFindNameInInstance("Can`t find name");
-                String href = aalink.attr("href");
-                ActivityInstance tempActivity = new ActivityInstance();
-                tempActivity.setHref(href);
-                tempActivity.setIconSrc(activityicon.attr("src"));
-                tempActivity.setText(instancename.text());
-                tempActivity.setType(getTypeFromInstanceURL(href));
-                tempActivity.setId(geIdeFromInstanceURL(href));
-                activityInstances.add(tempActivity);
+                if (aalink!=null && activityicon!=null && instancename!=null)
+                {
+                    String href = aalink.attr("href");
+                    ActivityInstance tempActivity = new ActivityInstance();
+                    tempActivity.setHref(href);
+                    tempActivity.setIconSrc(activityicon.attr("src"));
+                    tempActivity.setText(instancename.text());
+                    tempActivity.setType(getTypeFromInstanceURL(href));
+                    tempActivity.setId(geIdeFromInstanceURL(href));
+                    activityInstances.add(tempActivity);
+                }
+//                fixme aaaaa
+//                if (aalink==null)    throw new CantFindAalinkInInstance("Can`t find aalink");
+//                if (activityicon==null) throw new CantFindImgInInstance("Can`t find img");
+//                if (instancename==null) throw new CantFindNameInInstance("Can`t find name");
+
             }
             return activityInstances;
         }
-        catch (CantGetPersonInfo | IOException | CantFindAalinkInInstance | CantFindImgInInstance | CantFindNameInInstance e)
+        catch (CantGetPersonInfo | IOException e)
         {
             throw new CantGetActivityInstance(e.getMessage());
         }

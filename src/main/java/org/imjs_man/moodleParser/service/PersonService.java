@@ -34,18 +34,17 @@ public class PersonService {
     {
         return personRepository.findByToken(token) != null;
     }
-    public Boolean checkId(Integer id)
+    public Boolean checkId(long id)
     {
         return personRepository.findById(id) != null;
     }
-    public Map<String,String> getPersonsToParse()
+    public List<PersonEntity> getPersonsToParse()
     {
-        Map<String,String> logPassList = new HashMap<>();
-        for (PersonEntity person: personRepository.findAll())
-        {
-            logPassList.put(person.getLogin(), person.getPassword());
-        }
-        return logPassList;
+        return (List<PersonEntity>) personRepository.findAll();
+    }
+    public void savePerson(PersonEntity person)
+    {
+        personRepository.save(person);
     }
 
 

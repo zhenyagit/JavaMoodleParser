@@ -1,9 +1,8 @@
 package org.imjs_man.moodleParser.entity;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 public class QuizEntity {
@@ -14,9 +13,18 @@ public class QuizEntity {
     private double nowMark;
     private String name;
     private String href;
+    @ManyToOne
+    private CourseEntity courseEntity;
+    @OneToMany(fetch = FetchType.EAGER)
+    private Set<QuizAttemptEntity> attemptList;
 
-    @OneToMany
-    private List<QuizAttemptEntity> attemptList;
+    public CourseEntity getCourseEntity() {
+        return courseEntity;
+    }
+
+    public void setCourseEntity(CourseEntity courseEntity) {
+        this.courseEntity = courseEntity;
+    }
 
     public String getHref() {
         return href;
@@ -66,11 +74,11 @@ public class QuizEntity {
         this.nowMark = nowMark;
     }
 
-    public List<QuizAttemptEntity> getAttemptList() {
+    public Set<QuizAttemptEntity> getAttemptList() {
         return attemptList;
     }
 
-    public void setAttemptList(List<QuizAttemptEntity> attemptList) {
+    public void setAttemptList(Set<QuizAttemptEntity> attemptList) {
         this.attemptList = attemptList;
     }
 }
