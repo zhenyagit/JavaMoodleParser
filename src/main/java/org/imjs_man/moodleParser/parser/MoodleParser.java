@@ -1,15 +1,8 @@
 package org.imjs_man.moodleParser.parser;
 
-import org.imjs_man.moodleParser.entity.CourseEntity;
-import org.imjs_man.moodleParser.entity.ExerciseEntity;
-import org.imjs_man.moodleParser.entity.PersonEntity;
-import org.imjs_man.moodleParser.entity.QuizEntity;
+import org.imjs_man.moodleParser.entity.*;
 import org.imjs_man.moodleParser.exception.*;
-import org.imjs_man.moodleParser.repository.PersonRepository;
-import org.imjs_man.moodleParser.service.CourseService;
-import org.imjs_man.moodleParser.service.ExerciseService;
-import org.imjs_man.moodleParser.service.PersonService;
-import org.imjs_man.moodleParser.service.QuizService;
+import org.imjs_man.moodleParser.service.*;
 import org.imjs_man.moodleParser.tokenGenerator.TokenGenerator;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -30,11 +23,11 @@ import java.util.*;
 @Component
 @EnableScheduling
 public class MoodleParser {
-    //todo add exceptions, static or anything else
-    //todo start parsing with text and marks than parse all peoples
-    //fixme check all exception text
-    //fixme check all private public
-    //fixme too many timeout, go into while
+//    todo add exceptions, static or anything else
+//    todo start parsing with text and marks than parse all peoples
+//    fixme check all exception text
+//    fixme check all private public
+//    fixme too many timeout, go into while
 
     @Autowired
     TokenGenerator tokenGenerator;
@@ -46,6 +39,8 @@ public class MoodleParser {
     QuizService quizService;
     @Autowired
     ExerciseService exerciseService;
+    @Autowired
+    QuizAttemptService quizAttemptService;
 
     @Scheduled(fixedDelay = 10000)
     public void AutoParseCourses()
@@ -58,6 +53,8 @@ public class MoodleParser {
                 person.addCourseEntityList(newCourses);
                 personService.savePerson(person);
                 List<CourseEntity> allCourses = courseService.getAllCourses();
+//                List<CourseEntity> allCourses = new ArrayList<>();
+//                allCourses.add(courseService.getById(2421));
                 for(CourseEntity course: allCourses)
                 {
                     QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(person.getLogin(),person.getPassword(),course.getId()));
@@ -70,6 +67,17 @@ public class MoodleParser {
                     course.addQuizEntityList(quizEntities);
                     course.addExerciseEntityList(exerciseEntities);
                     courseService.saveCourse(course);
+//                    System.out.println(quizEntities.size());
+
+                    for(QuizEntity quizEntity: quizEntities)
+                    {
+//                        System.out.println("Try get quiz attempt");
+
+                        Set<QuizAttemptEntity> quizAttemptEntities = getQuizAttempts(person.getLogin(),person.getPassword(),quizEntity.getId());
+                        quizAttemptService.setManyPerson(quizAttemptEntities,person);
+                        quizAttemptService.setManyQuiz(quizAttemptEntities,quizEntity);
+                        quizAttemptService.saveAll(quizAttemptEntities);
+                    }
                 }
             } catch (ParseException | CantGetCoursesList | CantGetActivityInstance e) {
                 e.printStackTrace();
@@ -129,7 +137,7 @@ public class MoodleParser {
             authData.setSessKey(findSessKey(authData.getMainPageDataParsed()));
             authData.setAuth_ldapossoCookie(res.cookie("auth_ldaposso_authprovider"));
             authData.setMoodleSessionCookie(res.cookie("MoodleSession"));
-            if(authData.getAuth_ldapossoCookie().length()==0 || authData.getMoodleSessionCookie().length()==0) throw new EmptyAuthCookie("Empty cookie");
+            if(authData.getAuth_ldapossoCookie()==null || authData.getMoodleSessionCookie()==null) throw new EmptyAuthCookie("Empty cookie");
             return authData;
         } catch (IOException | CantGetAuthoriseToken | EmptyAuthCookie | CantFindSessKey e) {
             throw new CantGetPersonInfo(e.getMessage());
@@ -261,7 +269,23 @@ public class MoodleParser {
         String[] parseUrl= url.split("/");
         return parseUrl[parseUrl.length-2];
     }
-    public long geIdeFromInstanceURL(String url)
+    public long getIdFromQuizAttemptUrl(String url)
+    {
+        //https://stud.lms.tpu.ru/mod/quiz/review.php?attempt=3037980&cmid=257056
+        String[] parseUrl= url.split("/");
+        String lastWord = parseUrl[parseUrl.length-1];
+        char[] words = lastWord.toCharArray();
+        int startIndex = lastWord.indexOf("attempt=");
+        StringBuilder sesskeyBytes = new StringBuilder();
+        int index = startIndex+"attempt=".length();
+        while(words[index]!= '&')
+        {
+            sesskeyBytes.append(words[index]);
+            index++;
+        }
+        return Long.parseLong(sesskeyBytes.toString());
+    }
+    public long getIdFromInstanceURL(String url)
     {
         //todo exception
         String[] parseUrl= url.split("/");
@@ -286,21 +310,19 @@ public class MoodleParser {
             //todo instance type can be book,resource,url,page,forum,glossary
             switch (activityInstance.getType()) {
                 case ("quiz"):
-                    if (quizService.checkId(activityInstance.getId()))
-                        break;
-                    else {
+                    if (true) {
+                        //fixme !quizService.checkId(activityInstance.getId())
                         QuizEntity quizEntity = new QuizEntity();
                         quizEntity.setId(activityInstance.getId());
                         quizEntity.setName(activityInstance.getText());
                         quizEntity.setHref(activityInstance.getHref());
                         quizEntities.add(quizEntity);
                         //todo add to db, add to user
-                        break;
                     }
+                    break;
                 case ("assign"):
-                    if (exerciseService.checkId(activityInstance.getId()))
-                        break;
-                    else {
+                    if (true) {
+                        //fixme !exerciseService.checkId(activityInstance.getId())
                         ExerciseEntity exerciseEntity = new ExerciseEntity();
                         exerciseEntity.setId(activityInstance.getId());
                         exerciseEntity.setName(activityInstance.getText());
@@ -350,7 +372,7 @@ public class MoodleParser {
                     tempActivity.setIconSrc(activityicon.attr("src"));
                     tempActivity.setText(instancename.text());
                     tempActivity.setType(getTypeFromInstanceURL(href));
-                    tempActivity.setId(geIdeFromInstanceURL(href));
+                    tempActivity.setId(getIdFromInstanceURL(href));
                     activityInstances.add(tempActivity);
                 }
 //                fixme aaaaa
@@ -360,6 +382,72 @@ public class MoodleParser {
 
             }
             return activityInstances;
+        }
+        catch (CantGetPersonInfo | IOException e)
+        {
+            throw new CantGetActivityInstance(e.getMessage());
+        }
+    }
+
+    public Set<QuizAttemptEntity> getQuizAttempts(String login, String password, long quizId) throws CantGetActivityInstance {
+        Set<QuizAttemptEntity> quizAttemptEntities = new HashSet<>();
+        try {
+            AuthData authData = getAuthData(login, password);
+            Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/mod/quiz/view.php")
+                    .data("id", Long.toString(quizId))
+                    .followRedirects(true)
+                    .ignoreHttpErrors(true)
+                    .ignoreContentType(true)
+                    .userAgent("Mozilla")
+                    .cookie("_ga", "GA1.2.653870628.1616950848")
+                    .cookie("_ym_d", "1617257634")
+                    .cookie("_ym_uid", "161725763494258622")
+                    .cookie("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie())
+                    .cookie("MoodleSession", authData.getMoodleSessionCookie())
+                    .method(Connection.Method.POST)
+                    .maxBodySize(1_000_000 * 30)
+                    .timeout(300000)
+                    .execute();
+            Element table = jsonResponse.parse().getElementsByClass("generaltable quizattemptsummary").first();
+            if (table == null) return new HashSet<>();
+            Element temp = table.select("tbody").first();
+            if (temp == null) return new HashSet<>();
+            Elements attempts = temp.select("tr");
+            if (attempts.size() == 0) return new HashSet<>();
+            Elements collNames = table.select("th");
+            for(Element attempt: attempts)
+            {
+                QuizAttemptEntity quizAttemptEntity = new QuizAttemptEntity();
+                Elements collum = attempt.select("td");
+                for (int collIndex=0; collIndex<collNames.size(); collIndex++)
+                {
+                    if (collNames.get(collIndex).text().equals("Состояние")) quizAttemptEntity.setAttemptState(collum.get(collIndex).text());
+                    if (collNames.get(collIndex).text().split("/")[0].equals("Оценка ")) {
+                        quizAttemptEntity.setMaxMark(Double.parseDouble(collNames.get(collIndex).text().split("/")[1]));
+                        String tempMark = collum.get(collIndex).text();
+                        if (tempMark.length() != 0)
+                            if (tempMark.equals("Еще не оценено"))
+                                quizAttemptEntity.setNowMark(-1.0);
+                            else
+                                quizAttemptEntity.setNowMark(Double.parseDouble(tempMark));
+                    }
+                    if (collNames.get(collIndex).text().equals("Попытка")) quizAttemptEntity.setAttemptNumber(Integer.parseInt(collum.get(collIndex).text()));
+                    if (collNames.get(collIndex).text().equals("Просмотр"))
+                    {
+                        Element title = collum.get(collIndex).select("a").first();
+                        if (title!=null) {
+                            String href = title.attr("href");
+                            quizAttemptEntity.setHref(href);
+                            quizAttemptEntity.setId(getIdFromQuizAttemptUrl(href));
+                        }
+                    }
+                }
+                if (quizAttemptEntity.getAttemptNumber() == 0)
+                    quizAttemptEntity.setAttemptNumber(1);
+                if (quizAttemptEntity.getHref() != null)
+                    quizAttemptEntities.add(quizAttemptEntity);
+            }
+            return quizAttemptEntities;
         }
         catch (CantGetPersonInfo | IOException e)
         {

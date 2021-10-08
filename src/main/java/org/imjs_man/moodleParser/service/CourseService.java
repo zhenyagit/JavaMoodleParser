@@ -30,6 +30,10 @@ public class CourseService {
     public Boolean checkId(long id) {
         return courseRepository.findById(id) != null;
     }
+    public CourseEntity getById(long id)
+    {
+        return courseRepository.findById(id);
+    }
     public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
         PersonEntity temp = personRepository.findByToken(token);
         Set<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
