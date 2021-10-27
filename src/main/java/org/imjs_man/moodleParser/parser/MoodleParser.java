@@ -17,8 +17,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Component
 @EnableScheduling
@@ -42,13 +46,15 @@ public class MoodleParser {
     @Autowired
     QuizAttemptService quizAttemptService;
 
+
     @Scheduled(fixedDelay = 10000)
     public void AutoParseCourses()
     {
         for (PersonEntity person : personService.getPersonsToParse())
         {
             try {
-                Set<CourseEntity> newCourses = getParsedCoursesList(getRawCoursesList(person.getLogin(),person.getPassword()));
+                AuthData authData = getAuthData(person.getLogin(), person.getPassword());
+                Set<CourseEntity> newCourses = getParsedCoursesList(getRawCoursesList(authData));
                 courseService.saveMany(newCourses);
                 person.addCourseEntityList(newCourses);
                 personService.savePerson(person);
@@ -57,7 +63,7 @@ public class MoodleParser {
 //                allCourses.add(courseService.getById(2421));
                 for(CourseEntity course: allCourses)
                 {
-                    QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(person.getLogin(),person.getPassword(),course.getId()));
+                    QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(authData,course.getId()));
                     Set<QuizEntity> quizEntities = quiExeLists.quizes;
                     Set<ExerciseEntity> exerciseEntities = quiExeLists.exercises;
                     quizService.setManyParent(quizEntities, course);
@@ -73,17 +79,19 @@ public class MoodleParser {
                     {
 //                        System.out.println("Try get quiz attempt");
 
-                        Set<QuizAttemptEntity> quizAttemptEntities = getQuizAttempts(person.getLogin(),person.getPassword(),quizEntity.getId());
+                        Set<QuizAttemptEntity> quizAttemptEntities = getQuizAttempts(authData,quizEntity.getId());
                         quizAttemptService.setManyPerson(quizAttemptEntities,person);
                         quizAttemptService.setManyQuiz(quizAttemptEntities,quizEntity);
                         quizAttemptService.saveAll(quizAttemptEntities);
                     }
                 }
-            } catch (ParseException | CantGetCoursesList | CantGetActivityInstance e) {
+            } catch (CantGetPersonInfo | ParseException | CantGetCoursesList | CantGetActivityInstance e) {
                 e.printStackTrace();
             }
         }
     }
+
+
 
     private MoodleAuthToken getAuthToken() throws CantGetAuthoriseToken {
         try {
@@ -113,10 +121,10 @@ public class MoodleParser {
         }
         catch (IOException e)
         {
-            throw new CantGetAuthoriseToken("Error token");
+            throw new CantGetAuthoriseToken("Timeout exceeded when receiving token");
         }
     }
-    private AuthData getAuthData(String personLogin, String personPassword) throws CantGetPersonInfo {
+    public AuthData getAuthData(String personLogin, String personPassword) throws CantGetPersonInfo {
         try {
             MoodleAuthToken authToken = getAuthToken();
             Connection.Response res = Jsoup.connect("https://aid.main.tpu.ru/sso/auth")
@@ -137,15 +145,17 @@ public class MoodleParser {
             authData.setSessKey(findSessKey(authData.getMainPageDataParsed()));
             authData.setAuth_ldapossoCookie(res.cookie("auth_ldaposso_authprovider"));
             authData.setMoodleSessionCookie(res.cookie("MoodleSession"));
+            authData.setPersonLogin(personLogin);
+            authData.setPersonPassword(personPassword);
             if(authData.getAuth_ldapossoCookie()==null || authData.getMoodleSessionCookie()==null) throw new EmptyAuthCookie("Empty cookie");
             return authData;
         } catch (IOException | CantGetAuthoriseToken | EmptyAuthCookie | CantFindSessKey e) {
             throw new CantGetPersonInfo(e.getMessage());
         }
     }
-    private PersonEntity getPersonInfo(String personLogin, String personPassword) throws CantGetPersonInfo {
+    private PersonEntity getPersonInfo(AuthData authData) throws CantGetPersonInfo {
         try {
-            Document mainPageData = getAuthData(personLogin, personPassword).getMainPageData();
+            Document mainPageData = authData.getMainPageData();
             Elements mainPageDivs = mainPageData.select("div");
             Element loginInfoElem = null;
             Element uservisibilityElem = null;
@@ -173,8 +183,8 @@ public class MoodleParser {
             newPerson.setSurname(personSurname);
             newPerson.setPatronymic(personPatronymic);
             newPerson.setGroupName(personGroupName);
-            newPerson.setPassword(personPassword);
-            newPerson.setLogin(personLogin);
+            newPerson.setPassword(authData.getPersonPassword());
+            newPerson.setLogin(authData.getPersonLogin());
             if (personService.checkId(userId)) {throw new PersonAlreadyExist(personService.getTokenById(userId));}
             else {
                 String generatedToken = tokenGenerator.generateNewToken();
@@ -184,6 +194,11 @@ public class MoodleParser {
         } catch (CantGetPersonInfo | NumberFormatException | PersonAlreadyExist e) {
             throw new CantGetPersonInfo(e.getMessage());
         }
+    }
+
+    private PersonEntity getPersonInfo(String personLogin, String personPassword) throws CantGetPersonInfo {
+        AuthData authData = getAuthData(personLogin, personPassword);
+        return getPersonInfo(authData);
     }
 
     public PersonEntity auth(String login, String password) throws CantAuthoriseInMoodle {
@@ -206,9 +221,8 @@ public class MoodleParser {
         return sesskeyBytes.toString();
     }
 
-    public String getRawCoursesList(String login, String password) throws CantGetCoursesList {
+    public String getRawCoursesList(AuthData authData) throws CantGetCoursesList {
         try {
-            AuthData authData = getAuthData(login, password);
             String mainPageData = authData.getMainPageDataParsed();
             String sessKey = findSessKey(mainPageData);
             String auth_ldapossoCookie = authData.getAuth_ldapossoCookie();
@@ -232,7 +246,15 @@ public class MoodleParser {
                     .timeout(300000)
                     .execute();
             return jsonResponse.body();
-        } catch (CantGetPersonInfo | IOException | CantFindSessKey e) {
+        } catch (IOException | CantFindSessKey e) {
+            throw new CantGetCoursesList(e.getMessage());
+        }
+    }
+    public String getRawCoursesList(String login, String password) throws CantGetCoursesList {
+        try{
+            AuthData authData = getAuthData(login, password);
+            return getRawCoursesList(authData);
+        } catch (CantGetPersonInfo e) {
             throw new CantGetCoursesList(e.getMessage());
         }
     }
@@ -262,6 +284,13 @@ public class MoodleParser {
             courseList.add(course);
         }
         return courseList;
+    }
+    public Set<CourseEntity> getParsedCoursesList(AuthData authData) throws ParseException {
+        try {
+            return getParsedCoursesList(getRawCoursesList(authData));
+        } catch (CantGetCoursesList e) {
+            throw new ParseException(5);
+        }
     }
     public String getTypeFromInstanceURL(String url)
     {
@@ -337,9 +366,8 @@ public class MoodleParser {
         return listQuizExercise;
     }
 
-    public Set<ActivityInstance> getActivityInstanceFromCourse(String login, String password, long courseId) throws CantGetActivityInstance {
+    public Set<ActivityInstance> getActivityInstanceFromCourse(AuthData authData, long courseId) throws CantGetActivityInstance {
         try {
-            AuthData authData = getAuthData(login, password);
             Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/course/view.php")
                     .data("id", Long.toString(courseId))
                     .followRedirects(true)
@@ -358,14 +386,12 @@ public class MoodleParser {
             Elements activities = jsonResponse.parse().getElementsByClass("activityinstance");
 //            System.out.println(activities);
             Set<ActivityInstance> activityInstances = new HashSet<>();
-            for(Element activity: activities)
-            {
+            for (Element activity : activities) {
                 Element aalink = activity.getElementsByClass("aalink").first();
                 Element activityicon = activity.getElementsByClass("conlarge activityicon").first();
-                if (activityicon==null) activityicon = activity.getElementsByClass("iconlarge activityicon").first();
+                if (activityicon == null) activityicon = activity.getElementsByClass("iconlarge activityicon").first();
                 Element instancename = activity.getElementsByClass("instancename").first();
-                if (aalink!=null && activityicon!=null && instancename!=null)
-                {
+                if (aalink != null && activityicon != null && instancename != null) {
                     String href = aalink.attr("href");
                     ActivityInstance tempActivity = new ActivityInstance();
                     tempActivity.setHref(href);
@@ -382,17 +408,22 @@ public class MoodleParser {
 
             }
             return activityInstances;
-        }
-        catch (CantGetPersonInfo | IOException e)
-        {
+        } catch (IOException e) {
             throw new CantGetActivityInstance(e.getMessage());
         }
     }
 
-    public Set<QuizAttemptEntity> getQuizAttempts(String login, String password, long quizId) throws CantGetActivityInstance {
-        Set<QuizAttemptEntity> quizAttemptEntities = new HashSet<>();
+    public Set<ActivityInstance> getActivityInstanceFromCourse(String login, String password, long courseId) throws CantGetActivityInstance {
         try {
             AuthData authData = getAuthData(login, password);
+            return getActivityInstanceFromCourse(authData, courseId);
+        } catch (CantGetPersonInfo e) {
+            throw new CantGetActivityInstance(e.getMessage());
+        }
+    }
+
+    public Set<QuizAttemptEntity> getQuizAttempts(AuthData authData, long quizId) throws CantGetActivityInstance {
+        try {
             Connection.Response jsonResponse = Jsoup.connect("https://stud.lms.tpu.ru/mod/quiz/view.php")
                     .data("id", Long.toString(quizId))
                     .followRedirects(true)
@@ -415,6 +446,7 @@ public class MoodleParser {
             Elements attempts = temp.select("tr");
             if (attempts.size() == 0) return new HashSet<>();
             Elements collNames = table.select("th");
+            Set<QuizAttemptEntity> quizAttemptEntities = new HashSet<>();
             for(Element attempt: attempts)
             {
                 QuizAttemptEntity quizAttemptEntity = new QuizAttemptEntity();
@@ -449,12 +481,19 @@ public class MoodleParser {
             }
             return quizAttemptEntities;
         }
-        catch (CantGetPersonInfo | IOException e)
+        catch (IOException e)
         {
             throw new CantGetActivityInstance(e.getMessage());
         }
     }
 
-
+    public Set<QuizAttemptEntity> getQuizAttempts(String login, String password, long quizId) throws CantGetActivityInstance {
+        try {
+            AuthData authData = getAuthData(login, password);
+            return getQuizAttempts(authData, quizId);
+        } catch (CantGetPersonInfo e) {
+            throw new CantGetActivityInstance(e.getMessage());
+        }
+    }
 
 }

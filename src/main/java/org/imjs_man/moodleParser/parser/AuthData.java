@@ -8,6 +8,24 @@ public class AuthData {
     private String sessKey;
     private String auth_ldapossoCookie;
     private String moodleSessionCookie;
+    private String personLogin;
+    private String personPassword;
+
+    public String getPersonLogin() {
+        return personLogin;
+    }
+
+    public void setPersonLogin(String personLogin) {
+        this.personLogin = personLogin;
+    }
+
+    public String getPersonPassword() {
+        return personPassword;
+    }
+
+    public void setPersonPassword(String personPassword) {
+        this.personPassword = personPassword;
+    }
 
     public String getMainPageDataParsed() {
         return mainPageDataParsed;
