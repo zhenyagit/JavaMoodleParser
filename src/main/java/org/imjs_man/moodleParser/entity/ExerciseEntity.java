@@ -10,7 +10,7 @@ public class ExerciseEntity {
     private long id;
     private int maxAttempts;
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String exerciseText;
     private String name;
     private String href;

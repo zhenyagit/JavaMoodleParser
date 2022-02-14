@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.parser;
+package org.imjs_man.moodleParser.parser.service;
 
 public class MoodleAuthToken {
     private String v;

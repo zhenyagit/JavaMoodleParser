@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.parser;
+package org.imjs_man.moodleParser.parser.service;
 
 import org.jsoup.nodes.Document;
 

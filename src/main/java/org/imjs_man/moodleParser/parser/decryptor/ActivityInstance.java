@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.parser;
+package org.imjs_man.moodleParser.parser.decryptor;
 
 public class ActivityInstance {
     private String href;

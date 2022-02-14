@@ -10,7 +10,7 @@ public class CourseEntity {
     private long id;
     private String name;
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String summary;
     private int summaryformat;
     private int startdate;
@@ -19,7 +19,7 @@ public class CourseEntity {
     private String fullnamedisplay;
     private String coursecategory;
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String courseimage;
     private Boolean hasprogress;
     private Boolean isfavourite;

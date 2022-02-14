@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.parser;
+package org.imjs_man.moodleParser.parser.decryptor;
 
 import org.imjs_man.moodleParser.entity.ExerciseEntity;
 import org.imjs_man.moodleParser.entity.QuizEntity;

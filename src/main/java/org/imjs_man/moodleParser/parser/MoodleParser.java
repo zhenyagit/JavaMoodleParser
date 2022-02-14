@@ -2,6 +2,12 @@ package org.imjs_man.moodleParser.parser;
 
 import org.imjs_man.moodleParser.entity.*;
 import org.imjs_man.moodleParser.exception.*;
+import org.imjs_man.moodleParser.parser.decryptor.ActivityInstance;
+import org.imjs_man.moodleParser.parser.decryptor.MoodleDecryptor;
+import org.imjs_man.moodleParser.parser.decryptor.QuiExeLists;
+import org.imjs_man.moodleParser.parser.service.AuthData;
+import org.imjs_man.moodleParser.parser.service.MoodleAuthToken;
+import org.imjs_man.moodleParser.parser.service.MoodleService;
 import org.imjs_man.moodleParser.service.*;
 import org.imjs_man.moodleParser.tokenGenerator.TokenGenerator;
 import org.json.simple.JSONArray;
@@ -45,49 +51,73 @@ public class MoodleParser {
     ExerciseService exerciseService;
     @Autowired
     QuizAttemptService quizAttemptService;
-
+    @Autowired
+    MoodleService moodleService;
+    @Autowired
+    MoodleDecryptor moodleDecryptor;
+    // todo здесь сделаем такую штуку, вся хрень с сервиса в обертку
 
     @Scheduled(fixedDelay = 10000)
-    public void AutoParseCourses()
-    {
+    public void AutoParseCourses() throws CantFindSessKey, CantGetPersonInfo, CantGetAuthoriseToken {
+
         for (PersonEntity person : personService.getPersonsToParse())
         {
+            MoodleAuthToken moodleAuthToken;
+            String rawAuthToken = moodleService.getAuthToken().block();
+//            System.out.println(rawAuthToken);
+//            if (rawAuthToken == null)
+//                throw new CantGetPersonInfo("servak govno");
+//            else
+//                moodleAuthToken = moodleDecryptor.getParsedAuthToken(rawAuthToken);
+
+            moodleAuthToken = getAuthToken();
+            Connection.Response respAuth = moodleService.getAuthData(person, moodleAuthToken);
+            System.out.println(respAuth);
             try {
-                AuthData authData = getAuthData(person.getLogin(), person.getPassword());
-                Set<CourseEntity> newCourses = getParsedCoursesList(getRawCoursesList(authData));
-                courseService.saveMany(newCourses);
-                person.addCourseEntityList(newCourses);
-                personService.savePerson(person);
-                List<CourseEntity> allCourses = courseService.getAllCourses();
-//                List<CourseEntity> allCourses = new ArrayList<>();
-//                allCourses.add(courseService.getById(2421));
-                for(CourseEntity course: allCourses)
-                {
-                    QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(authData,course.getId()));
-                    Set<QuizEntity> quizEntities = quiExeLists.quizes;
-                    Set<ExerciseEntity> exerciseEntities = quiExeLists.exercises;
-                    quizService.setManyParent(quizEntities, course);
-                    quizService.saveAll(quizEntities);
-                    exerciseService.setManyParent(exerciseEntities, course);
-                    exerciseService.saveAll(exerciseEntities);
-                    course.addQuizEntityList(quizEntities);
-                    course.addExerciseEntityList(exerciseEntities);
-                    courseService.saveCourse(course);
-//                    System.out.println(quizEntities.size());
-
-                    for(QuizEntity quizEntity: quizEntities)
-                    {
-//                        System.out.println("Try get quiz attempt");
-
-                        Set<QuizAttemptEntity> quizAttemptEntities = getQuizAttempts(authData,quizEntity.getId());
-                        quizAttemptService.setManyPerson(quizAttemptEntities,person);
-                        quizAttemptService.setManyQuiz(quizAttemptEntities,quizEntity);
-                        quizAttemptService.saveAll(quizAttemptEntities);
-                    }
-                }
-            } catch (CantGetPersonInfo | ParseException | CantGetCoursesList | CantGetActivityInstance e) {
+                AuthData authDataOne = moodleDecryptor.getParsedAuthData(person, respAuth);
+//                System.out.println(authDataOne.getMainPageDataParsed());
+                System.out.println(moodleService.getRawCoursesList(authDataOne).block());
+            } catch (EmptyAuthCookie | IOException e) {
                 e.printStackTrace();
             }
+
+
+//            try {
+//                AuthData authData = getAuthData(person.getLogin(), person.getPassword());
+//                Set<CourseEntity> newCourses = getParsedCoursesList(getRawCoursesList(authData));
+//                courseService.saveMany(newCourses);
+//                person.addCourseEntityList(newCourses);
+//                personService.savePerson(person);
+//                List<CourseEntity> allCourses = courseService.getAllCourses();
+////                List<CourseEntity> allCourses = new ArrayList<>();
+////                allCourses.add(courseService.getById(2421));
+//                for(CourseEntity course: allCourses)
+//                {
+//                    QuiExeLists quiExeLists = getParsedActivityInstances(getActivityInstanceFromCourse(authData,course.getId()));
+//                    Set<QuizEntity> quizEntities = quiExeLists.quizes;
+//                    Set<ExerciseEntity> exerciseEntities = quiExeLists.exercises;
+//                    quizService.setManyParent(quizEntities, course);
+//                    quizService.saveAll(quizEntities);
+//                    exerciseService.setManyParent(exerciseEntities, course);
+//                    exerciseService.saveAll(exerciseEntities);
+//                    course.addQuizEntityList(quizEntities);
+//                    course.addExerciseEntityList(exerciseEntities);
+//                    courseService.saveCourse(course);
+////                    System.out.println(quizEntities.size());
+//
+//                    for(QuizEntity quizEntity: quizEntities)
+//                    {
+////                        System.out.println("Try get quiz attempt");
+//
+//                        Set<QuizAttemptEntity> quizAttemptEntities = getQuizAttempts(authData,quizEntity.getId());
+//                        quizAttemptService.setManyPerson(quizAttemptEntities,person);
+//                        quizAttemptService.setManyQuiz(quizAttemptEntities,quizEntity);
+//                        quizAttemptService.saveAll(quizAttemptEntities);
+//                    }
+//                }
+//            } catch (CantGetPersonInfo | ParseException | CantGetCoursesList | CantGetActivityInstance e) {
+//                e.printStackTrace();
+//            }
         }
     }
 
