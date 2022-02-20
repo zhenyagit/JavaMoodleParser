@@ -23,7 +23,6 @@ public class PersonService {
     public String auth(AuthForm authForm) throws CantAuthoriseInMoodle
     {
         PersonEntity newPerson = moodleParser.auth(authForm.getUsername(), authForm.getPassword());
-        personRepository.save(newPerson);
         return newPerson.getToken();
     }
     public String getTokenById(long id)

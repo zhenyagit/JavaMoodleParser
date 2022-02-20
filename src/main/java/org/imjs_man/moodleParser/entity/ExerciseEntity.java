@@ -5,9 +5,7 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-public class ExerciseEntity {
-    @Id
-    private long id;
+public class ExerciseEntity extends SuperEntity implements Comparable<ExerciseEntity>{
     private int maxAttempts;
     @Lob
     @Column(columnDefinition = "TEXT")
@@ -19,20 +17,16 @@ public class ExerciseEntity {
     @OneToMany(fetch = FetchType.EAGER)
     private Set<ExerciseAttemptEntity> exerciseAttemptEntityList;
 
+    @Override
+    public int compareTo(ExerciseEntity otherExercise) {
+        return Integer.compare((int)getId(), (int)otherExercise.getId());
+    }
     public CourseEntity getCourseEntity() {
         return courseEntity;
     }
 
     public void setCourseEntity(CourseEntity courseEntity) {
         this.courseEntity = courseEntity;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
     }
 
     public int getMaxAttempts() {

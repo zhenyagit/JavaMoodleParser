@@ -1,5 +1,6 @@
 package org.imjs_man.moodleParser.parser.service;
 
+import org.imjs_man.moodleParser.entity.PersonEntity;
 import org.jsoup.nodes.Document;
 
 public class AuthData {
@@ -10,6 +11,15 @@ public class AuthData {
     private String moodleSessionCookie;
     private String personLogin;
     private String personPassword;
+    private PersonEntity personEntity;
+
+    public PersonEntity getPersonEntity() {
+        return personEntity;
+    }
+
+    public void setPersonEntity(PersonEntity personEntity) {
+        this.personEntity = personEntity;
+    }
 
     public String getPersonLogin() {
         return personLogin;

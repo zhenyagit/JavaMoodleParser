@@ -31,11 +31,11 @@ public class CourseService {
     {
         return courseRepository.findById(id);
     }
-    public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
-        PersonEntity temp = personRepository.findByToken(token);
-        Set<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
-        courseRepository.saveAll(courses);
-    }
+//    public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
+//        PersonEntity temp = personRepository.findByToken(token);
+//        Set<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
+//        courseRepository.saveAll(courses);
+//    }
     public void saveMany(Set<CourseEntity> newCourses)
     {
         courseRepository.saveAll(newCourses);

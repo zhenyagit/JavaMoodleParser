@@ -16,6 +16,7 @@ import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.server.Session;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -51,7 +52,6 @@ public class MoodleService {
     WebClientConfiguration webClientConfiguration = new WebClientConfiguration();
     private final WebClient webClient = webClientConfiguration.webClientWithTimeout();
 
-    private static final Logger logger = LoggerFactory.getLogger(MoodleService.class);
 
     // todo здесь только запросы
     public Mono<String>  getAuthToken() {
@@ -72,7 +72,40 @@ public class MoodleService {
                 .bodyToMono(String.class);
     }
 
-    public Connection.Response getAuthData(PersonEntity person, MoodleAuthToken authToken) throws CantGetPersonInfo
+    public MoodleAuthToken getAuthTokenOld() throws CantGetAuthoriseToken {
+        try {
+            Document tokensData = Jsoup.connect("https://stud.lms.tpu.ru/login/index.php?authSSO=OSSO")
+                    .data("query", "Java")
+                    .userAgent("Mozilla")
+                    .cookie("auth", "token")
+                    .timeout(30000)
+                    .get();
+            Elements inputs = tokensData.select("input");
+            String value_v = "";
+            String value_token = "";
+            String value_locale = "";
+            String value_app = "";
+            for (Element inp : inputs) {
+                if (inp.attr("name").equals("v")) value_v = inp.attr("value");
+                if (inp.attr("name").equals("site2pstoretoken")) value_token = inp.attr("value");
+                if (inp.attr("name").equals("locale")) value_locale = inp.attr("value");
+                if (inp.attr("name").equals("appctx")) value_app = inp.attr("value");
+            }
+            MoodleAuthToken authToken =  new MoodleAuthToken();
+            authToken.setV(value_v);
+            authToken.setSite2pstoretoken(value_token);
+            authToken.setLocale(value_locale);
+            authToken.setAppctx(value_app);
+            return authToken;
+        }
+        catch (IOException e)
+        {
+            throw new CantGetAuthoriseToken("Timeout exceeded when receiving token");
+        }
+    }
+
+
+    public Connection.Response getAuthDataOld(PersonEntity person, MoodleAuthToken authToken) throws CantGetPersonInfo
     {
         try {
             String personLogin = person.getLogin();
@@ -125,6 +158,29 @@ public class MoodleService {
                 .bodyToMono(String.class);
     }
 
+    public Mono<String> getDataFromDefaultGet(AuthData authData, String uri, MultiValueMap<String, String> queryParamsMap)
+    {
+        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
+        myCookies.add("_ga", "GA1.2.653870628.1616950848");
+        myCookies.add("_ym_d", "1617257634");
+        myCookies.add("_ym_uid", "161725763494258622");
+        myCookies.add("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie());
+        myCookies.add("MoodleSession", authData.getMoodleSessionCookie());
+//        Session.Cookie cookieee = new Session.Cookie();
+//        cookieee.setDomain("asdasd");
+
+        return webClient
+                .get()
+                .uri(uriBuilder -> uriBuilder.path(uri)
+                        .queryParams(queryParamsMap)
+                        .build())
+                .cookies(cookies -> cookies.addAll(myCookies))
+                .header(HttpHeaders.CONTENT_TYPE, String.valueOf(MediaType.TEXT_HTML))
+                .retrieve()
+                .bodyToMono(String.class);
+    }
+
+
     public Mono<String> getRawCoursesList(AuthData authData) {
         String uri = "/lib/ajax/service.php";
         String body = "[{\"index\":0,\"methodname\":\"core_course_get_enrolled_courses_by_timeline_classification\",\"args\":{\"offset\":0,\"limit\":0,\"classification\":\"all\",\"sort\":\"fullname\",\"customfieldname\":\"\",\"customfieldvalue\":\"\"}}]";
@@ -134,14 +190,16 @@ public class MoodleService {
         return getDataFromDefaultPost(authData, uri, queryParams, body);
     }
 
-    public Mono<String> getRawActivityInstancesFromCourse(AuthData authData, long courseId) {
+    public Mono<String> getRawActivityInstances(AuthData authData, long courseId) {
         String uri = "/course/view.php";
         MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<String, String>();
         queryParams.add("id", Long.toString(courseId));
-        return getDataFromDefaultPost(authData, uri, queryParams);
+        queryParams.add("authSSO","OSSO");
+        queryParams.add("query","Java");
+        return getDataFromDefaultGet(authData, uri, queryParams);
     }
 
-    public Mono<String> getRawQuizAttempts(AuthData authData, long quizId) throws CantGetActivityInstance {
+    public Mono<String> getRawQuizAttempts(AuthData authData, long quizId)  {
         String uri = "/mod/quiz/view.php";
         MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<String, String>();
         queryParams.add("id", Long.toString(quizId));

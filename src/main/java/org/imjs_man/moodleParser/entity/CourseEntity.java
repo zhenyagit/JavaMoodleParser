@@ -5,9 +5,7 @@ import javax.persistence.*;
 import java.util.Set;
 
 @Entity
-public class CourseEntity {
-    @Id
-    private long id;
+public class CourseEntity extends SuperEntity implements Comparable<CourseEntity>{
     private String name;
     @Lob
     @Column(columnDefinition = "TEXT")
@@ -31,6 +29,10 @@ public class CourseEntity {
     @OneToMany(fetch = FetchType.EAGER)
     private Set<QuizEntity> quizEntityList;
 
+    @Override
+    public int compareTo(CourseEntity otherCourse) {
+        return Integer.compare((int)getId(), (int)otherCourse.getId());
+    }
     public Set<PersonEntity> getPersonEntityList() {
         return personEntityList;
     }
@@ -102,12 +104,6 @@ public class CourseEntity {
     }
     public void setHidden(Boolean hidden) {
         this.hidden = hidden;
-    }
-    public long getId() {
-        return id;
-    }
-    public void setId(long id) {
-        this.id = id;
     }
     public String getName() {
         return name;

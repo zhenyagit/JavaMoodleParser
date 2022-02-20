@@ -1,12 +1,7 @@
 package org.imjs_man.moodleParser.parser.decryptor;
 
-import org.imjs_man.moodleParser.entity.CourseEntity;
-import org.imjs_man.moodleParser.entity.PersonEntity;
-import org.imjs_man.moodleParser.entity.QuizAttemptEntity;
-import org.imjs_man.moodleParser.exception.CantFindSessKey;
-import org.imjs_man.moodleParser.exception.CantGetPersonInfo;
-import org.imjs_man.moodleParser.exception.EmptyAuthCookie;
-import org.imjs_man.moodleParser.exception.PersonAlreadyExist;
+import org.imjs_man.moodleParser.entity.*;
+import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.parser.service.AuthData;
 import org.imjs_man.moodleParser.parser.service.MoodleAuthToken;
 import org.json.simple.JSONArray;
@@ -54,15 +49,22 @@ public class MoodleDecryptor{
         return authToken;
     }
 
-    public AuthData getParsedAuthData(PersonEntity person, Connection.Response res) throws CantFindSessKey, EmptyAuthCookie, IOException {
+    public AuthData getParsedAuthData(PersonEntity person, Connection.Response res) throws CantFindSessKey, EmptyAuthCookie, CantParseMainDocument {
         AuthData authData = new AuthData();
-        authData.setMainPageData(res.parse());
+        try {
+            authData.setMainPageData(res.parse());
+        }
+        catch (IOException e)
+        {
+            throw new CantParseMainDocument("Broken document");
+        }
         authData.setMainPageDataParsed(authData.getMainPageData().toString());
         authData.setSessKey(findSessKey(authData.getMainPageDataParsed()));
         authData.setAuth_ldapossoCookie(res.cookie("auth_ldaposso_authprovider"));
         authData.setMoodleSessionCookie(res.cookie("MoodleSession"));
         authData.setPersonLogin(person.getLogin());
         authData.setPersonPassword(person.getPassword());
+        authData.setPersonEntity(person);
         if (authData.getAuth_ldapossoCookie() == null || authData.getMoodleSessionCookie() == null)
             throw new EmptyAuthCookie("Empty cookie");
         return  authData;
@@ -80,7 +82,7 @@ public class MoodleDecryptor{
         return sesskeyBytes.toString();
     }
 
-    private PersonEntity getParsedPersonInfo(AuthData authData) throws CantGetPersonInfo
+    public PersonEntity getParsedPersonInfo(AuthData authData) throws CantGetPersonInfo
     {
         Document mainPageData = authData.getMainPageData();
         Elements mainPageDivs = mainPageData.select("div");
@@ -143,7 +145,7 @@ public class MoodleDecryptor{
         }
         return courseList;
     }
-    public Set<ActivityInstance> getParsedActivityInstancesFromCourse(String rawActivityInstances) {
+    public Set<ActivityInstance> getParsedActivityInstances(String rawActivityInstances) {
         Elements activities = Jsoup.parse(rawActivityInstances).getElementsByClass("activityinstance");
         Set<ActivityInstance> activityInstances = new HashSet<>();
         for (Element activity : activities) {
@@ -168,6 +170,42 @@ public class MoodleDecryptor{
 
         }
         return activityInstances;
+    }
+    public QuiExeLists getParsedQuiExeListsFromActivityInstanses(Set<ActivityInstance> activityInstances)
+    {
+        QuiExeLists listQuizExercise = new QuiExeLists();
+        Set<QuizEntity> quizEntities = new HashSet<>();
+        Set<ExerciseEntity> exerciseEntities = new HashSet<>();
+        for (ActivityInstance activityInstance : activityInstances)
+        {
+            //todo instance type can be book,resource,url,page,forum,glossary
+            switch (activityInstance.getType()) {
+                case ("quiz"):
+                    if (true) {
+                        //fixme !quizService.checkId(activityInstance.getId())
+                        QuizEntity quizEntity = new QuizEntity();
+                        quizEntity.setId(activityInstance.getId());
+                        quizEntity.setName(activityInstance.getText());
+                        quizEntity.setHref(activityInstance.getHref());
+                        quizEntities.add(quizEntity);
+                        //todo add to db, add to user
+                    }
+                    break;
+                case ("assign"):
+                    if (true) {
+                        //fixme !exerciseService.checkId(activityInstance.getId())
+                        ExerciseEntity exerciseEntity = new ExerciseEntity();
+                        exerciseEntity.setId(activityInstance.getId());
+                        exerciseEntity.setName(activityInstance.getText());
+                        exerciseEntity.setHref(activityInstance.getHref());
+                        exerciseEntities.add(exerciseEntity);
+                        break;
+                    }
+            }
+        }
+        listQuizExercise.setQuizes(quizEntities);
+        listQuizExercise.setExercises(exerciseEntities);
+        return listQuizExercise;
     }
 
     public Set<QuizAttemptEntity> getParsedQuizAttempts(String rawQuizAttempts) {

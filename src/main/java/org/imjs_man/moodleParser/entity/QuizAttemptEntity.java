@@ -5,9 +5,8 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-public class QuizAttemptEntity {
-    @Id
-    private long id;
+public class QuizAttemptEntity extends SuperEntity implements Comparable<QuizAttemptEntity>{
+
     private int attemptNumber;
     private String attemptState;
     private double nowMark;
@@ -19,6 +18,11 @@ public class QuizAttemptEntity {
     private QuizEntity quizEntity;
     @OneToMany(fetch = FetchType.EAGER)
     private Set<QuizQuestionEntity> quizQuestionEntityList;
+
+    @Override
+    public int compareTo(QuizAttemptEntity otherQuizAttempt) {
+        return Integer.compare((int)getId(), (int)otherQuizAttempt.getId());
+    }
 
     public double getMaxMark() {
         return maxMark;
@@ -34,14 +38,6 @@ public class QuizAttemptEntity {
 
     public void setHref(String href) {
         this.href = href;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
     }
 
     public int getAttemptNumber() {
