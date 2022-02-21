@@ -60,7 +60,6 @@ public class PersonEntity extends SuperEntity implements Comparable<PersonEntity
         this.patronymic = patronymic;
     }
 
-
     public String getLogin() {
         return login;
     }

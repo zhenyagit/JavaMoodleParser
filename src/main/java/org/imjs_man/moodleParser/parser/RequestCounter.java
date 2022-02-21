@@ -19,7 +19,7 @@ public class RequestCounter {
     {
         ids.add(item.getId());
         types.add(item.getClass().getName());
-        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " added. #: " + getCount());
+//        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " added. #: " + getCount());
     }
 
     public Integer getCount()
@@ -32,19 +32,24 @@ public class RequestCounter {
         int index;
         for (index = 0; index<ids.size(); index++)
         {
-            if (ids.get(index) == item.getId() && Objects.equals(types.get(index), item.getClass().getName()))
+            if (ids.get(index) == item.getId() && Objects.equals(types.get(index), item.getClass().getName())) {
                 break;
+            }
         }
         return index;
     }
 
-    public <T extends SuperEntity> void removeItem(T item)
+    public synchronized <T extends SuperEntity> void removeItem(T item)
     {
+
         int indexToRemove = findIndexOfElement(item);
+//        logger.info(String.valueOf(indexToRemove));
         ids.remove(indexToRemove);
         types.remove(indexToRemove);
-        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " removed. #: " + getCount());
+//        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " removed. #: " + getCount());
 
+
+        // todo block method or variables by while(zanyat)
     }
 
 }
