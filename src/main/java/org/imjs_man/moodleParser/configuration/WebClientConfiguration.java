@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.parser.service;
+package org.imjs_man.moodleParser.configuration;
 
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;

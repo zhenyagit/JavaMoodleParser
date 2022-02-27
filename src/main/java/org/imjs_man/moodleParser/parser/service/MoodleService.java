@@ -1,5 +1,6 @@
 package org.imjs_man.moodleParser.parser.service;
 
+import org.imjs_man.moodleParser.configuration.WebClientConfiguration;
 import org.imjs_man.moodleParser.entity.dataBase.PersonEntity;
 import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.service.*;

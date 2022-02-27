@@ -18,8 +18,9 @@ public class ComparisonQuizQuestionEntity extends SuperEntity implements Compara
     private int state;
     private double mark;
     private double maxMark;
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String name;
-
     @Type(type = "string-array")
     @Column(columnDefinition = "text[]")
     private String[] listOfQuestions;
