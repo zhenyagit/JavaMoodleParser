@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.entity;
+package org.imjs_man.moodleParser.entity.dataBase;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;

@@ -1,11 +1,7 @@
 package org.imjs_man.moodleParser.parser.service;
 
-import io.netty.channel.ChannelOption;
-import org.imjs_man.moodleParser.entity.PersonEntity;
-import org.imjs_man.moodleParser.entity.QuizAttemptEntity;
+import org.imjs_man.moodleParser.entity.dataBase.PersonEntity;
 import org.imjs_man.moodleParser.exception.*;
-import org.imjs_man.moodleParser.parser.decryptor.ActivityInstance;
-import org.imjs_man.moodleParser.parser.MoodleParser;
 import org.imjs_man.moodleParser.service.*;
 import org.imjs_man.moodleParser.tokenGenerator.TokenGenerator;
 import org.jsoup.Connection;
@@ -13,10 +9,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.server.Session;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -24,14 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
 
 @Service
 public class MoodleService {
@@ -55,7 +44,7 @@ public class MoodleService {
 
     // todo здесь только запросы
     public Mono<String>  getAuthToken() {
-        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<String, String>();
+        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
         myCookies.add("auth", "token");
         WebClient tempClient = WebClient.builder().clientConnector(new ReactorClientHttpConnector(
                 HttpClient.create().followRedirect(true))).build();
@@ -184,7 +173,7 @@ public class MoodleService {
     public Mono<String> getRawCoursesList(AuthData authData) {
         String uri = "/lib/ajax/service.php";
         String body = "[{\"index\":0,\"methodname\":\"core_course_get_enrolled_courses_by_timeline_classification\",\"args\":{\"offset\":0,\"limit\":0,\"classification\":\"all\",\"sort\":\"fullname\",\"customfieldname\":\"\",\"customfieldvalue\":\"\"}}]";
-        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<String, String>();
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.add("sesskey", authData.getSessKey());
         queryParams.add("info", "core_calendar_get_calendar_monthly_view");
         return getDataFromDefaultPost(authData, uri, queryParams, body);
@@ -192,7 +181,7 @@ public class MoodleService {
 
     public Mono<String> getRawActivityInstances(AuthData authData, long courseId) {
         String uri = "/course/view.php";
-        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<String, String>();
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.add("id", Long.toString(courseId));
         queryParams.add("authSSO","OSSO");
         queryParams.add("query","Java");
@@ -201,9 +190,18 @@ public class MoodleService {
 
     public Mono<String> getRawQuizAttempts(AuthData authData, long quizId)  {
         String uri = "/mod/quiz/view.php";
-        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<String, String>();
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.add("id", Long.toString(quizId));
         return getDataFromDefaultPost(authData, uri, queryParams);
+    }
+
+    public Mono<String> getRawQuizAttemptsQuestionsAndAnswers(AuthData authData, long quizAttemptId, long quizAttemptCmid)
+    {
+        String uri = "/mod/quiz/review.php";
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+        queryParams.add("attempt", Long.toString(quizAttemptId));
+        queryParams.add("cmid", Long.toString(quizAttemptCmid));
+        return getDataFromDefaultGet(authData, uri, queryParams);
     }
 
 //    public Mono<Document> getUserByIdAsync(final String id) throws CantFindSessKey {

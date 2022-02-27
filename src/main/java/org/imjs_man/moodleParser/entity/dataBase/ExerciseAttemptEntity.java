@@ -1,10 +1,9 @@
-package org.imjs_man.moodleParser.entity;
+package org.imjs_man.moodleParser.entity.dataBase;
 
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
-import java.util.List;
 import java.util.Set;
 
 @Entity

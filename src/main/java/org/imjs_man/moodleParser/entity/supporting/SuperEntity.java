@@ -1,4 +1,4 @@
-package org.imjs_man.moodleParser.entity;
+package org.imjs_man.moodleParser.entity.supporting;
 
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;

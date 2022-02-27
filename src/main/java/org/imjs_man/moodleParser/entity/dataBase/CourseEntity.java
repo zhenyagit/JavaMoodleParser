@@ -1,5 +1,7 @@
-package org.imjs_man.moodleParser.entity;
+package org.imjs_man.moodleParser.entity.dataBase;
 
+
+import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
 
 import javax.persistence.*;
 import java.util.Set;

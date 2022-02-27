@@ -1,10 +1,8 @@
 package org.imjs_man.moodleParser.service;
 
-import org.imjs_man.moodleParser.entity.CourseEntity;
-import org.imjs_man.moodleParser.entity.ExerciseEntity;
-import org.imjs_man.moodleParser.entity.QuizEntity;
+import org.imjs_man.moodleParser.entity.dataBase.CourseEntity;
+import org.imjs_man.moodleParser.entity.dataBase.ExerciseEntity;
 import org.imjs_man.moodleParser.repository.ExerciseRepository;
-import org.imjs_man.moodleParser.repository.QuizRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

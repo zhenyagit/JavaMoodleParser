@@ -1,9 +1,6 @@
 package org.imjs_man.moodleParser.parser;
 
-import com.fasterxml.classmate.GenericType;
-import net.bytebuddy.description.type.TypeList;
-import org.hibernate.cache.spi.support.AbstractReadWriteAccess;
-import org.imjs_man.moodleParser.entity.QuizEntity;
+import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
 import org.imjs_man.moodleParser.parser.service.AuthData;
 
 public class EntityWithAuthData<T extends Comparable<T>> implements Comparable<EntityWithAuthData<T>>{

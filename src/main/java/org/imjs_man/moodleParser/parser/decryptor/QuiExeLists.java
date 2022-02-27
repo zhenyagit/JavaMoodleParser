@@ -1,7 +1,7 @@
 package org.imjs_man.moodleParser.parser.decryptor;
 
-import org.imjs_man.moodleParser.entity.ExerciseEntity;
-import org.imjs_man.moodleParser.entity.QuizEntity;
+import org.imjs_man.moodleParser.entity.dataBase.ExerciseEntity;
+import org.imjs_man.moodleParser.entity.dataBase.QuizEntity;
 
 import java.util.Set;
 

@@ -1,6 +1,7 @@
 package org.imjs_man.moodleParser.parser.decryptor;
 
-import org.imjs_man.moodleParser.entity.*;
+import org.imjs_man.moodleParser.entity.dataBase.*;
+import org.imjs_man.moodleParser.entity.supporting.DifferentQuizQuestions;
 import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.parser.service.AuthData;
 import org.imjs_man.moodleParser.parser.service.MoodleAuthToken;
@@ -14,10 +15,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-
-import javax.xml.parsers.DocumentBuilder;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -171,7 +170,7 @@ public class MoodleDecryptor{
         }
         return activityInstances;
     }
-    public QuiExeLists getParsedQuiExeListsFromActivityInstanses(Set<ActivityInstance> activityInstances)
+    public QuiExeLists getParsedQuiExeListsFromActivityInstances(Set<ActivityInstance> activityInstances)
     {
         QuiExeLists listQuizExercise = new QuiExeLists();
         Set<QuizEntity> quizEntities = new HashSet<>();
@@ -188,7 +187,6 @@ public class MoodleDecryptor{
                         quizEntity.setName(activityInstance.getText());
                         quizEntity.setHref(activityInstance.getHref());
                         quizEntities.add(quizEntity);
-                        //todo add to db, add to user
                     }
                     break;
                 case ("assign"):
@@ -249,6 +247,92 @@ public class MoodleDecryptor{
                 quizAttemptEntities.add(quizAttemptEntity);
         }
         return quizAttemptEntities;
+    }
+
+    public DifferentQuizQuestions getParsedQuizAttemptsQuestionsAndAnswers(String rawQuizAttemptsQuestions) {
+        Element form = Jsoup.parse(rawQuizAttemptsQuestions).getElementsByClass("questionflagsaveform").first();
+        assert form != null;
+        Elements questions = Objects.requireNonNull(form.children().first()).children();
+        ArrayList<ComparisonQuizQuestionEntity> comparisonQuizQuestions = new ArrayList<>();
+        questions.remove(questions.size()-1);
+        questions.remove(questions.size()-1);
+        for (Element question: questions)
+        {
+            String[] classNames = question.attr("class").split(" ");
+            switch (classNames[1]) {
+                case ("ddmatch"): {
+
+                    ArrayList<String> listOfVariants = new ArrayList<>();
+                    ArrayList<Integer> listOfResult = new ArrayList<>();
+                    ArrayList<String> listOfQuestions = new ArrayList<>();
+                    ArrayList<Integer> listOfChoice = new ArrayList<>();
+                    int state;
+                    double maxMark;
+                    double mark;
+                    String name;
+                    long id;
+                    Element quizBody = question.select("tbody").first();
+                    assert quizBody != null;
+                    for (Element part: quizBody.children())
+                    {
+
+                        listOfQuestions.add(Objects.requireNonNull(part.getElementsByClass("text").first()).text());
+                        Element selectMenu = part.getElementsByClass("control").first();
+                        if (selectMenu != null) {
+                            if (listOfVariants.size()==0)
+                                for (Element option: Objects.requireNonNull(selectMenu.children().first()).children())
+                                {
+                                    listOfVariants.add(option.text());
+                                }
+                            String className = selectMenu.attr("class");
+                            if (className.split(" ")[1].equals("correct"))
+                                listOfResult.add(1);
+                            else
+                                listOfResult.add(0);
+                            Element choiceVariant = selectMenu.select("[selected=selected]").first();
+                            if (choiceVariant != null) {
+                                listOfChoice.add(Integer.parseInt(choiceVariant.attr("value")));
+                            }
+                        }
+                    }
+
+                    String[] gradleString = Objects.requireNonNull(question.getElementsByClass("grade").first()).text().split("из");
+                    mark = Double.parseDouble(gradleString[0].split(" ")[1]);
+                    maxMark = Double.parseDouble(gradleString[1]);
+                    name = Objects.requireNonNull(question.getElementsByClass("qtext").first()).text();
+                    String[] idString = question.attr("id").split("-");
+                    id = Long.parseLong(idString[2]+idString[1]);
+                    String stateString = question.getElementsByClass("state").text();
+                    state = 2;
+                    if (stateString.equals("Верно"))
+                    {
+                        state = 0;
+                    }
+                    if (stateString.equals("Частично правильный"))
+                    {
+                        state = 1;
+                    }
+                    ComparisonQuizQuestionEntity temp = new ComparisonQuizQuestionEntity();
+                    temp.setListOfQuestions(listOfQuestions.toArray(new String[0]));
+                    temp.setListOfChoice(listOfChoice.toArray(new Integer[0]));
+                    temp.setListOfResult(listOfResult.toArray(new Integer[0]));
+                    temp.setListOfVariants(listOfVariants.toArray(new String[0]));
+                    temp.setId(id);
+                    temp.setMark(mark);
+                    temp.setMaxMark(maxMark);
+                    temp.setName(name);
+                    temp.setState(state);
+                    comparisonQuizQuestions.add(temp);
+                    break;
+                }
+
+            }
+
+        }
+        DifferentQuizQuestions differentQuizQuestions = new DifferentQuizQuestions();
+        differentQuizQuestions.setComparisonQuizQuestions(comparisonQuizQuestions);
+        //todo add more
+        return differentQuizQuestions;
     }
 
     public String getTypeFromInstanceURL(String url)
