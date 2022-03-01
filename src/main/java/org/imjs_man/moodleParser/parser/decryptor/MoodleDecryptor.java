@@ -271,11 +271,19 @@ public class MoodleDecryptor{
                     double mark;
                     String name;
                     long id;
-                    Element quizBody = question.select("tbody").first();
+                    Elements quizBodies = question.select("tbody");
+                    Element quizBody = null;
+                    for (Element temp:quizBodies)
+                    {
+                        if (Objects.requireNonNull(temp.children().first()).attr("class").length()>0)
+                        {
+                            quizBody = temp;
+                            break;
+                        }
+                    }
                     assert quizBody != null;
                     for (Element part: quizBody.children())
                     {
-
                         listOfQuestions.add(Objects.requireNonNull(part.getElementsByClass("text").first()).text());
                         Element selectMenu = part.getElementsByClass("control").first();
                         if (selectMenu != null) {
@@ -295,10 +303,6 @@ public class MoodleDecryptor{
                             }
                         }
                     }
-
-                    String[] gradleString = Objects.requireNonNull(question.getElementsByClass("grade").first()).text().split("из");
-                    mark = Double.parseDouble(gradleString[0].split(" ")[1]);
-                    maxMark = Double.parseDouble(gradleString[1]);
                     name = Objects.requireNonNull(question.getElementsByClass("qtext").first()).text();
                     String[] idString = question.attr("id").split("-");
                     id = Long.parseLong(idString[2]+idString[1]);
@@ -308,9 +312,28 @@ public class MoodleDecryptor{
                     {
                         state = 0;
                     }
+                    if (stateString.equals("Выполнен"))
+                    {
+                        state = 4;
+                    }
                     if (stateString.equals("Частично правильный"))
                     {
                         state = 1;
+                    }
+                    if (stateString.equals("Пока нет ответа"))
+                    {
+                        state = 3;
+                    }
+                    if (state == 0 || state == 1 || state == 4) {
+                        String[] gradleString = Objects.requireNonNull(question.getElementsByClass("grade").first()).text().split("из");
+                        mark = Double.parseDouble(gradleString[0].split(" ")[1]);
+                        maxMark = Double.parseDouble(gradleString[1]);
+                    }
+                    else
+                    {
+                        String[] gradleString = Objects.requireNonNull(question.getElementsByClass("grade").first()).text().split(" ");
+                        mark = 0;
+                        maxMark = Double.parseDouble(gradleString[1]);
                     }
                     ComparisonQuizQuestionEntity temp = new ComparisonQuizQuestionEntity();
                     temp.setListOfQuestions(listOfQuestions.toArray(new String[0]));
@@ -323,6 +346,11 @@ public class MoodleDecryptor{
                     temp.setName(name);
                     temp.setState(state);
                     comparisonQuizQuestions.add(temp);
+                    break;
+                }
+                default:
+                {
+//                    System.out.println("New type : " + classNames[1]);
                     break;
                 }
 

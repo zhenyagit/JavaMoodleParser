@@ -1,5 +1,5 @@
 function connect() {
-	var socket = new SockJS('/chat-messaging');
+	var socket = new SockJS('/message');
 	stompClient = Stomp.over(socket);
 	stompClient.connect({}, function(frame) {
 		console.log("connected: " + frame);

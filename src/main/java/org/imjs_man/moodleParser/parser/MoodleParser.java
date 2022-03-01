@@ -61,15 +61,14 @@ public class MoodleParser {
     private static final int MAX_REQUEST_COUNTER = 20;
 
     @EventListener(ApplicationReadyEvent.class)
-    public void addPersonsToQueue()
-    {
+    public void addPersonsToQueue() throws CantFindSessKey, CantParseMainDocument, EmptyAuthCookie, CantGetPersonInfo, CantGetAuthoriseToken {
         for (PersonEntity person : personService.getPersonsToParse()) {
             AuthData authData = new AuthData();
             EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>(person, authData);
-            personParseQueue.add(temp);
+//            personParseQueue.add(temp);
 
 //                AuthData authData = getJustAuthData(person);
-//                QuizAttemptEntity quizAttemptEntity = quizAttemptService.getById(2996620);
+//                QuizAttemptEntity quizAttemptEntity = quizAttemptService.getById(2699624);
 //                EntityWithAuthData<QuizAttemptEntity> temp = new EntityWithAuthData<>(quizAttemptEntity, authData);
 //                quizAttemptParseEntity.add(temp);
             logger.info("Person added to queue : "+ person.getFullName());
@@ -263,7 +262,8 @@ public class MoodleParser {
     private <T extends SuperEntity> void errorProcessing(Throwable error, AuthData authData, T item)
     {
         requestCounter.removeItem(item);
-        logger.warn(error.getMessage());
+
+        logger.warn(error.getMessage() +" : "+ item.getClass().getSimpleName()+ " " + item.getId()+ " " + authData.getPersonEntity().getFullName());
         if (item.getClass().getName().equals("org.imjs_man.moodleParser.entity.dataBase.PersonEntity"))
         {
             EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>((PersonEntity) item, authData);

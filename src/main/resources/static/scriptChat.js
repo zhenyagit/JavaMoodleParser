@@ -1,5 +1,5 @@
 function connect() {
-	var socket = new SockJS('/chat-messaging');
+	var socket = new SockJS('/message');
 	stompClient = Stomp.over(socket);
 	stompClient.connect({}, function(frame) {
 		console.log("connected: " + frame);
@@ -24,6 +24,7 @@ function draw(side, text) {
 function disconnect(){
 	stompClient.disconnect();
 }
+
 function sendMessage(){
 	stompClient.send("/app/message", {}, JSON.stringify({'message': $("#message_input_value").val()}));
 
