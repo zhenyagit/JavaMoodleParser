@@ -24,6 +24,7 @@ function draw(side, text) {
 function disconnect(){
 	stompClient.disconnect();
 }
+
 function sendMessage(){
 	stompClient.send("/app/message", {}, JSON.stringify({'message': $("#message_input_value").val()}));
 

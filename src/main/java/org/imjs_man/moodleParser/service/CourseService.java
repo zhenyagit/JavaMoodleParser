@@ -7,6 +7,7 @@ import org.imjs_man.moodleParser.repository.PersonRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -16,33 +17,30 @@ public class CourseService {
 
     @Autowired
     private CourseRepository courseRepository;
-    @Autowired
-    private PersonRepository personRepository;
-    @Autowired
-    private MoodleParser moodleParser;
 
-    public Boolean checkId(long id) {
-        return courseRepository.findById(id) != null;
+    public Boolean isExist(long id) {
+        return courseRepository.existsById(id);
     }
+
     public CourseEntity getById(long id)
     {
         return courseRepository.findById(id);
     }
-//    public void loadCoursesByToken(String token) throws ParseException, CantGetCoursesList {
-//        PersonEntity temp = personRepository.findByToken(token);
-//        Set<CourseEntity> courses = moodleParser.getParsedCoursesList(moodleParser.getRawCoursesList(temp.getLogin(), temp.getPassword()));
-//        courseRepository.saveAll(courses);
-//    }
-    public void saveMany(Set<CourseEntity> newCourses)
+    public void saveAll(ArrayList<CourseEntity> newCourses)
     {
         courseRepository.saveAll(newCourses);
     }
-    public List<CourseEntity> getAllCourses()
+    public ArrayList<CourseEntity> getAllCourses()
     {
-        return (List<CourseEntity>) courseRepository.findAll();
+        return (ArrayList<CourseEntity>) courseRepository.findAll();
     }
-    public void saveCourse(CourseEntity courseEntity)
+    public void saveOne(CourseEntity courseEntity)
     {
         courseRepository.save(courseEntity);
     }
+    public ArrayList<CourseEntity> getForIndexing()
+    {
+        return courseRepository.findByIndexesLowIsNull();
+    }
+
 }

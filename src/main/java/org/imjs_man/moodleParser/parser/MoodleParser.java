@@ -208,8 +208,8 @@ public class MoodleParser {
     {
         requestCounter.removeItem(personEntity);
         try {
-            Set<CourseEntity> courseEntities = moodleDecryptor.getParsedCoursesList(rawCourses);
-            courseService.saveMany(courseEntities);
+            ArrayList<CourseEntity> courseEntities = moodleDecryptor.getParsedCoursesList(rawCourses);
+            courseService.saveAll(courseEntities);
             for (CourseEntity courseEntity:courseEntities)
             {
                 EntityWithAuthData<CourseEntity> temp = new EntityWithAuthData<>(courseEntity,authData);
@@ -239,10 +239,10 @@ public class MoodleParser {
     private void processingQuizExercise(String rawActivityInstances, AuthData authData, CourseEntity courseEntity)
     {
         requestCounter.removeItem(courseEntity);
-        Set<ActivityInstance> activityInstances = moodleDecryptor.getParsedActivityInstances(rawActivityInstances);
+        ArrayList<ActivityInstance> activityInstances = moodleDecryptor.getParsedActivityInstances(rawActivityInstances);
         QuiExeLists quiExeLists = moodleDecryptor.getParsedQuiExeListsFromActivityInstances(activityInstances);
-        Set<QuizEntity> quizEntities = quiExeLists.getQuizes();
-        Set<ExerciseEntity> exerciseEntities = quiExeLists.getExercises();
+        ArrayList<QuizEntity> quizEntities = quiExeLists.getQuizes();
+        ArrayList<ExerciseEntity> exerciseEntities = quiExeLists.getExercises();
         quizService.setManyParent(quizEntities, courseEntity);
         quizService.saveAll(quizEntities);
         exerciseService.setManyParent(exerciseEntities, courseEntity);

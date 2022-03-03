@@ -1,10 +1,13 @@
 package org.imjs_man.moodleParser.service;
 
+import org.imjs_man.moodleParser.entity.dataBase.ComparisonQuizQuestionEntity;
 import org.imjs_man.moodleParser.entity.dataBase.CourseEntity;
 import org.imjs_man.moodleParser.entity.dataBase.QuizEntity;
 import org.imjs_man.moodleParser.repository.QuizRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -14,7 +17,7 @@ public class QuizService {
     @Autowired
     private QuizRepository quizRepository;
 
-    public void saveAll(Set<QuizEntity> quizEntities)
+    public void saveAll(ArrayList<QuizEntity> quizEntities)
     {
         quizRepository.saveAll(quizEntities);
     }
@@ -22,14 +25,18 @@ public class QuizService {
     {
         return quizRepository.findById(id) != null;
     }
-    public List<QuizEntity> getAllQuizes() {
-        return (List<QuizEntity>) quizRepository.findAll();
+    public ArrayList<QuizEntity> getAllQuizes() {
+        return quizRepository.findAll();
     }
-    public void setManyParent(Set<QuizEntity> quizEntities, CourseEntity courseEntity)
+    public void setManyParent(ArrayList<QuizEntity> quizEntities, CourseEntity courseEntity)
     {
         for (QuizEntity quizEntity:quizEntities)
         {
             quizEntity.setCourseEntity(courseEntity);
         }
+    }
+    public ArrayList<QuizEntity> getForIndexing()
+    {
+        return quizRepository.findByIndexesLowIsNull();
     }
 }

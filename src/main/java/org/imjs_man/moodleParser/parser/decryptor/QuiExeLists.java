@@ -3,25 +3,26 @@ package org.imjs_man.moodleParser.parser.decryptor;
 import org.imjs_man.moodleParser.entity.dataBase.ExerciseEntity;
 import org.imjs_man.moodleParser.entity.dataBase.QuizEntity;
 
+import java.util.ArrayList;
 import java.util.Set;
 
 public class QuiExeLists {
-    private Set<QuizEntity> quizes;
-    private Set<ExerciseEntity> exercises;
+    private ArrayList<QuizEntity> quizes;
+    private ArrayList<ExerciseEntity> exercises;
 
-    public Set<QuizEntity> getQuizes() {
+    public ArrayList<QuizEntity> getQuizes() {
         return quizes;
     }
 
-    public void setQuizes(Set<QuizEntity> quizes) {
+    public void setQuizes(ArrayList<QuizEntity> quizes) {
         this.quizes = quizes;
     }
 
-    public Set<ExerciseEntity> getExercises() {
+    public ArrayList<ExerciseEntity> getExercises() {
         return exercises;
     }
 
-    public void setExercises(Set<ExerciseEntity> exercises) {
+    public void setExercises(ArrayList<ExerciseEntity> exercises) {
         this.exercises = exercises;
     }
 }

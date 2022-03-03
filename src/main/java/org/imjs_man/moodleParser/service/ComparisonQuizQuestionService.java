@@ -34,5 +34,9 @@ public class ComparisonQuizQuestionService {
     {
         comparisonQuizQuestionRepository.saveAll(comparisonQuizQuestionEntities);
     }
+    public ArrayList<ComparisonQuizQuestionEntity> getForIndexing()
+    {
+        return comparisonQuizQuestionRepository.findByIndexesLowIsNull();
+    }
 
 }

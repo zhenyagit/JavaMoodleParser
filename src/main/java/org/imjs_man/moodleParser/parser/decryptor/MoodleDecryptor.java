@@ -118,12 +118,12 @@ public class MoodleDecryptor{
         return newPerson;
     }
 
-    public Set<CourseEntity> getParsedCoursesList(String jsonResponse) throws ParseException {
+    public ArrayList<CourseEntity> getParsedCoursesList(String jsonResponse) throws ParseException {
         JSONArray jsonparsedresponse = (JSONArray) new JSONParser().parse(jsonResponse);
         JSONObject tempObj =  (JSONObject) jsonparsedresponse.get(0);
         tempObj =  (JSONObject) tempObj.get("data");
         JSONArray tempArr =  (JSONArray) tempObj.get("courses");
-        Set<CourseEntity> courseList = new HashSet<>();
+        ArrayList<CourseEntity> courseList = new ArrayList<>();
         for (Object o : tempArr) {
             JSONObject courseJson = (JSONObject) o;
             CourseEntity course = new CourseEntity();
@@ -144,9 +144,9 @@ public class MoodleDecryptor{
         }
         return courseList;
     }
-    public Set<ActivityInstance> getParsedActivityInstances(String rawActivityInstances) {
+    public ArrayList<ActivityInstance> getParsedActivityInstances(String rawActivityInstances) {
         Elements activities = Jsoup.parse(rawActivityInstances).getElementsByClass("activityinstance");
-        Set<ActivityInstance> activityInstances = new HashSet<>();
+        ArrayList<ActivityInstance> activityInstances = new ArrayList<>();
         for (Element activity : activities) {
             Element aalink = activity.getElementsByClass("aalink").first();
             Element activityicon = activity.getElementsByClass("conlarge activityicon").first();
@@ -170,11 +170,16 @@ public class MoodleDecryptor{
         }
         return activityInstances;
     }
-    public QuiExeLists getParsedQuiExeListsFromActivityInstances(Set<ActivityInstance> activityInstances)
+    /**
+     * Example of documentation
+     * @param activityInstances This is the first parameter
+     * @return listQuizExercise This returns
+     */
+    public QuiExeLists getParsedQuiExeListsFromActivityInstances(ArrayList<ActivityInstance> activityInstances)
     {
         QuiExeLists listQuizExercise = new QuiExeLists();
-        Set<QuizEntity> quizEntities = new HashSet<>();
-        Set<ExerciseEntity> exerciseEntities = new HashSet<>();
+        ArrayList<QuizEntity> quizEntities = new ArrayList<>();
+        ArrayList<ExerciseEntity> exerciseEntities = new ArrayList<>();
         for (ActivityInstance activityInstance : activityInstances)
         {
             //todo instance type can be book,resource,url,page,forum,glossary
