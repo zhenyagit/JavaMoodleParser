@@ -1,6 +1,7 @@
 package org.imjs_man.moodleParser.entity.dataBase;
 
 
+import com.google.gson.annotations.Expose;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
 
 import javax.persistence.*;
@@ -8,7 +9,9 @@ import java.util.Set;
 
 @Entity
 public class CourseEntity extends SuperEntity implements Comparable<CourseEntity>{
+    @Expose() // gson serialize only this fields
     private String name;
+    @Expose()
     @Lob
     @Column(columnDefinition = "TEXT")
     private String summary;
@@ -16,8 +19,10 @@ public class CourseEntity extends SuperEntity implements Comparable<CourseEntity
     private int startdate;
     private int enddate;
     private int progress;
+    @Expose()
     private String fullnamedisplay;
     private String coursecategory;
+    @Expose()
     @Lob
     @Column(columnDefinition = "TEXT")
     private String courseimage;

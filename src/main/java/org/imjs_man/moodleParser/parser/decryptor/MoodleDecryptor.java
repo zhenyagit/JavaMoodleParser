@@ -122,6 +122,8 @@ public class MoodleDecryptor{
         JSONArray jsonparsedresponse = (JSONArray) new JSONParser().parse(jsonResponse);
         JSONObject tempObj =  (JSONObject) jsonparsedresponse.get(0);
         tempObj =  (JSONObject) tempObj.get("data");
+
+        // todo change to gson lib
         JSONArray tempArr =  (JSONArray) tempObj.get("courses");
         ArrayList<CourseEntity> courseList = new ArrayList<>();
         for (Object o : tempArr) {
@@ -353,6 +355,7 @@ public class MoodleDecryptor{
                     comparisonQuizQuestions.add(temp);
                     break;
                 }
+
                 default:
                 {
 //                    System.out.println("New type : " + classNames[1]);

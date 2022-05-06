@@ -21,7 +21,6 @@ public class RequestCounter {
     {
         ids.add(item.getId());
         types.add(item.getClass().getName());
-//        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " added. #: " + getCount());
     }
 
     public Integer getCount()
@@ -44,13 +43,8 @@ public class RequestCounter {
 
     public synchronized <T extends SuperEntity> void removeItem(T item)
     {
-//        int indexToRemove = findIndexOfElement(item);
-//      logger.info(String.valueOf(indexToRemove));
         ids.remove(item.getId());
         types.remove(item.getClass().getName());
-//        logger.info("Item "+item.getClass().getName() + " " + item.getId()+ " removed. #: " + getCount());
-
-        // todo block method or variables by while(zanyat)
     }
 
 }
