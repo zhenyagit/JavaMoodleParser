@@ -38,12 +38,13 @@ public class MoodleService {
     ExerciseService exerciseService;
     @Autowired
     QuizAttemptService quizAttemptService;
-
-    WebClientConfiguration webClientConfiguration = new WebClientConfiguration();
-    private final WebClient webClient = webClientConfiguration.webClientWithTimeout();
+    @Autowired
+    WebClient webClient;
 
 
     // todo здесь только запросы
+
+
     public Mono<String>  getAuthToken() {
         MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
         myCookies.add("auth", "token");
@@ -56,7 +57,7 @@ public class MoodleService {
 //                        .queryParam("query", "Java")
 //                        .build())
                 .uri("https://stud.lms.tpu.ru/login/index.php?authSSO=OSSO&query=Java")
-//                .cookies(cookies -> cookies.addAll(myCookies))
+                .cookies(cookies -> cookies.addAll(myCookies))
                 .header("User-Agent", "insomnia/2021.7.2")
                 .retrieve()
                 .bodyToMono(String.class);
@@ -119,12 +120,7 @@ public class MoodleService {
 
     public WebClient.RequestBodySpec getDefaultPost(AuthData authData, String uri, MultiValueMap<String, String> queryParamsMap)
     {
-        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
-        myCookies.add("_ga", "GA1.2.653870628.1616950848");
-        myCookies.add("_ym_d", "1617257634");
-        myCookies.add("_ym_uid", "161725763494258622");
-        myCookies.add("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie());
-        myCookies.add("MoodleSession", authData.getMoodleSessionCookie());
+        MultiValueMap<String, String> myCookies = generateDefaultCookie(authData);
         return webClient
                 .post()
                 .uri(uriBuilder -> uriBuilder.path(uri)
@@ -150,15 +146,7 @@ public class MoodleService {
 
     public Mono<String> getDataFromDefaultGet(AuthData authData, String uri, MultiValueMap<String, String> queryParamsMap)
     {
-        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
-        myCookies.add("_ga", "GA1.2.653870628.1616950848");
-        myCookies.add("_ym_d", "1617257634");
-        myCookies.add("_ym_uid", "161725763494258622");
-        myCookies.add("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie());
-        myCookies.add("MoodleSession", authData.getMoodleSessionCookie());
-//        Session.Cookie cookieee = new Session.Cookie();
-//        cookieee.setDomain("asdasd");
-
+        MultiValueMap<String, String> myCookies = generateDefaultCookie(authData);
         return webClient
                 .get()
                 .uri(uriBuilder -> uriBuilder.path(uri)
@@ -205,6 +193,16 @@ public class MoodleService {
         return getDataFromDefaultGet(authData, uri, queryParams);
     }
 
+    private MultiValueMap<String, String> generateDefaultCookie(AuthData authData)
+    {
+        MultiValueMap<String, String> myCookies = new LinkedMultiValueMap<>();
+        myCookies.add("_ga", "GA1.2.653870628.1616950848");
+        myCookies.add("_ym_d", "1617257634");
+        myCookies.add("_ym_uid", "161725763494258622");
+        myCookies.add("auth_ldaposso_authprovider", authData.getAuth_ldapossoCookie());
+        myCookies.add("MoodleSession", authData.getMoodleSessionCookie());
+        return myCookies;
+    }
 //    public Mono<Document> getUserByIdAsync(final String id) throws CantFindSessKey {
 //        String mainPageData = authData.getMainPageDataParsed();
 //        String sessKey = moodleParser.findSessKey(mainPageData);

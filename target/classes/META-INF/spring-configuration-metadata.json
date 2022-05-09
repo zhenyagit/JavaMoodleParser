@@ -1,0 +1,30 @@
+{
+  "groups": [
+    {
+      "name": "self.elastic.rest",
+      "type": "org.imjs_man.moodleParser.configuration.SimpleElasticClientConfiguration",
+      "sourceType": "org.imjs_man.moodleParser.configuration.SimpleElasticClientConfiguration"
+    }
+  ],
+  "properties": [
+    {
+      "name": "self.elastic.rest.hostname",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database host url.",
+      "sourceType": "org.imjs_man.moodleParser.configuration.SimpleElasticClientConfiguration"
+    },
+    {
+      "name": "self.elastic.rest.password",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database user password.",
+      "sourceType": "org.imjs_man.moodleParser.configuration.SimpleElasticClientConfiguration"
+    },
+    {
+      "name": "self.elastic.rest.username",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database user name.",
+      "sourceType": "org.imjs_man.moodleParser.configuration.SimpleElasticClientConfiguration"
+    }
+  ],
+  "hints": []
+}

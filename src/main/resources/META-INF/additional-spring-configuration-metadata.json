@@ -1,0 +1,18 @@
+{
+  "properties": [
+    {
+      "name": "self.elastic.rest.username",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database user name."
+    },
+    {
+      "name": "self.elastic.rest.password",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database user password."
+    },
+    {
+      "name": "self.elastic.rest.hostname",
+      "type": "java.lang.String",
+      "description": "Elasticsearch database host url."
+    }
+  ] }
