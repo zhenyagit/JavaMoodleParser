@@ -4,6 +4,7 @@ import com.vladmihalcea.hibernate.type.array.IntArrayType;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.TypeDefs;
+import org.imjs_man.moodleParser.entity.dataBase.CourseEntity;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
@@ -13,7 +14,7 @@ import javax.persistence.MappedSuperclass;
 @TypeDefs({
         @TypeDef(name = "int-array", typeClass = IntArrayType.class)
 })
-public class SuperEntity {
+public abstract class SuperEntity implements Comparable<SuperEntity>{
     @Id
     private long id;
     @Type(type = "int-array")
@@ -47,6 +48,11 @@ public class SuperEntity {
         this.indexesHigh = indexesHigh;
     }
 
+    @Override
+    public int compareTo(SuperEntity otherCourse) {
+        return Integer.compare((int)getId(), (int)otherCourse.getId());
+    }
+
     public Long[] getIndexes() {
         int n = indexesLow.length;
         Long[] longOut = new Long[n];
@@ -67,4 +73,5 @@ public class SuperEntity {
         this.indexesLow = temp_low;
         this.indexesHigh = temp_high;
     }
+
 }

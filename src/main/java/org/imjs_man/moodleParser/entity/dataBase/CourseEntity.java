@@ -8,12 +8,12 @@ import javax.persistence.*;
 import java.util.Set;
 
 @Entity
-public class CourseEntity extends SuperEntity implements Comparable<CourseEntity>{
-    @Expose() // gson serialize only this fields
+public class CourseEntity extends SuperEntity {
+    @Expose()   // gson serialize only this fields
     private String name;
     @Expose()
-    @Lob
-    @Column(columnDefinition = "TEXT")
+    @Lob                                // massive texts
+    @Column(columnDefinition = "TEXT")  // massive texts
     private String summary;
     private int summaryformat;
     private int startdate;
@@ -36,10 +36,6 @@ public class CourseEntity extends SuperEntity implements Comparable<CourseEntity
     @OneToMany(fetch = FetchType.EAGER)
     private Set<QuizEntity> quizEntityList;
 
-    @Override
-    public int compareTo(CourseEntity otherCourse) {
-        return Integer.compare((int)getId(), (int)otherCourse.getId());
-    }
     public Set<PersonEntity> getPersonEntityList() {
         return personEntityList;
     }

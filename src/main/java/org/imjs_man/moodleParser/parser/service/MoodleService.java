@@ -1,6 +1,5 @@
 package org.imjs_man.moodleParser.parser.service;
 
-import org.imjs_man.moodleParser.configuration.WebClientConfiguration;
 import org.imjs_man.moodleParser.entity.dataBase.PersonEntity;
 import org.imjs_man.moodleParser.exception.*;
 import org.imjs_man.moodleParser.service.*;
@@ -184,12 +183,12 @@ public class MoodleService {
         return getDataFromDefaultPost(authData, uri, queryParams);
     }
 
-    public Mono<String> getRawQuizAttemptsQuestionsAndAnswers(AuthData authData, long quizAttemptId, long quizAttemptCmid)
+    public Mono<String> getRawQuizAttemptsQuestionsAndAnswers(AuthData authData, long quizAttemptId)
     {
         String uri = "/mod/quiz/review.php";
         MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.add("attempt", Long.toString(quizAttemptId));
-        queryParams.add("cmid", Long.toString(quizAttemptCmid));
+//        queryParams.add("cmid", Long.toString(quizAttemptCmid));
         return getDataFromDefaultGet(authData, uri, queryParams);
     }
 
@@ -203,6 +202,8 @@ public class MoodleService {
         myCookies.add("MoodleSession", authData.getMoodleSessionCookie());
         return myCookies;
     }
+
+
 //    public Mono<Document> getUserByIdAsync(final String id) throws CantFindSessKey {
 //        String mainPageData = authData.getMainPageDataParsed();
 //        String sessKey = moodleParser.findSessKey(mainPageData);

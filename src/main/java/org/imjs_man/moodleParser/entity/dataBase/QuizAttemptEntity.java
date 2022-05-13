@@ -6,7 +6,7 @@ import javax.persistence.*;
 import java.util.Set;
 
 @Entity
-public class QuizAttemptEntity extends SuperEntity implements Comparable<QuizAttemptEntity>{
+public class QuizAttemptEntity extends SuperEntity {
 
     private int attemptNumber;
     private String attemptState;
@@ -20,10 +20,6 @@ public class QuizAttemptEntity extends SuperEntity implements Comparable<QuizAtt
     @OneToMany(fetch = FetchType.EAGER)
     private Set<QuizQuestionEntity> quizQuestionEntityList;
 
-    @Override
-    public int compareTo(QuizAttemptEntity otherQuizAttempt) {
-        return Integer.compare((int)getId(), (int)otherQuizAttempt.getId());
-    }
 
     public double getMaxMark() {
         return maxMark;

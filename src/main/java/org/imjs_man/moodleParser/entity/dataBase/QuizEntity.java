@@ -1,26 +1,23 @@
 package org.imjs_man.moodleParser.entity.dataBase;
 
+import com.google.gson.annotations.Expose;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
 
 import javax.persistence.*;
 import java.util.Set;
 
 @Entity
-public class QuizEntity extends SuperEntity implements Comparable<QuizEntity>{
+public class QuizEntity extends SuperEntity{
     private int quizState;
     private double maxMark;
     private double nowMark;
+    @Expose()
     private String name;
     private String href;
     @ManyToOne
     private CourseEntity courseEntity;
     @OneToMany(fetch = FetchType.EAGER)
     private Set<QuizAttemptEntity> attemptList;
-
-    @Override
-    public int compareTo(QuizEntity otherQuiz) {
-        return Integer.compare((int)getId(), (int)otherQuiz.getId());
-    }
 
     public CourseEntity getCourseEntity() {
         return courseEntity;

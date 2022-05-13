@@ -1,5 +1,7 @@
 package org.imjs_man.moodleParser.parser;
 
+import org.elasticsearch.common.recycler.Recycler;
+import org.elasticsearch.search.SearchHit;
 import org.imjs_man.moodleParser.entity.dataBase.*;
 import org.imjs_man.moodleParser.entity.supporting.DifferentQuizQuestions;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
@@ -10,6 +12,7 @@ import org.imjs_man.moodleParser.parser.decryptor.QuiExeLists;
 import org.imjs_man.moodleParser.parser.service.AuthData;
 import org.imjs_man.moodleParser.parser.service.MoodleAuthToken;
 import org.imjs_man.moodleParser.parser.service.MoodleService;
+import org.imjs_man.moodleParser.prettyTable.PrettyTable;
 import org.imjs_man.moodleParser.service.*;
 import org.imjs_man.moodleParser.tokenGenerator.TokenGenerator;
 import org.json.simple.parser.ParseException;
@@ -22,6 +25,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -51,20 +55,24 @@ public class MoodleParser {
     // todo здесь сделаем такую штуку, вся хрень с сервиса в обертку
 
     private final RequestCounter requestCounter = new RequestCounter();
-    private final PriorityQueue<EntityWithAuthData<CourseEntity>> courseParseQueue = new PriorityQueue<>();
-    private final PriorityQueue<EntityWithAuthData<QuizEntity>> quizParseQueue = new PriorityQueue<>();
-    private final PriorityQueue<EntityWithAuthData<ExerciseEntity>> exerciseParseQueue = new PriorityQueue<>();
-    private final PriorityQueue<EntityWithAuthData<PersonEntity>> personParseQueue = new PriorityQueue<>();
-    private final PriorityQueue<EntityWithAuthData<QuizAttemptEntity>> quizAttemptParseEntity = new PriorityQueue<>();
+//    private final PriorityQueue<EntityWithAuthData<CourseEntity>> courseParseQueue = new PriorityQueue<>();
+//    private final PriorityQueue<EntityWithAuthData<QuizEntity>> quizParseQueue = new PriorityQueue<>();
+//    private final PriorityQueue<EntityWithAuthData<ExerciseEntity>> exerciseParseQueue = new PriorityQueue<>();
+//    private final PriorityQueue<EntityWithAuthData<PersonEntity>> personParseQueue = new PriorityQueue<>();
+//    private final PriorityQueue<EntityWithAuthData<QuizAttemptEntity>> quizAttemptParseEntity = new PriorityQueue<>();
+    private final SuperEntityQueue mainQueue = new SuperEntityQueue();
+//    private final PriorityQueue<EntityWithAuthData<SuperEntity>> mainQueue = new PriorityQueue<>();
     private static final Logger logger = LoggerFactory.getLogger(MoodleParser.class);
 
     private static final int MAX_REQUEST_COUNTER = 20;
 
+
+
+
     @EventListener(ApplicationReadyEvent.class)
     public void addPersonsToQueue() throws CantFindSessKey, CantParseMainDocument, EmptyAuthCookie, CantGetPersonInfo, CantGetAuthoriseToken {
         for (PersonEntity person : personService.getPersonsToParse()) {
-            AuthData authData = new AuthData();
-            EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>(person, authData);
+            mainQueue.addToQueue(null,person);
 //            personParseQueue.add(temp);
 
 //                AuthData authData = getJustAuthData(person);
@@ -76,48 +84,18 @@ public class MoodleParser {
         }
     }
 
+
     @Scheduled(fixedDelay = 1000)
-    private void AutoParseCourses() {
-        if ((courseParseQueue.peek()!=null) && (requestCounter.getCount()< MAX_REQUEST_COUNTER))
+    private void autoParseAll() throws NoItemInQueue {
+        while(!mainQueue.isEmpty() && (requestCounter.getCount()< MAX_REQUEST_COUNTER))
         {
-            EntityWithAuthData<CourseEntity> temp = courseParseQueue.poll();
-            assert temp != null;
-            getQuizExerciseByCourseId(temp.getAuthData(),temp.getEntity());
+            getDataBySuperEntity(mainQueue.getFromQueue());
         }
     }
 
-    @Scheduled(fixedDelay = 1000)
-    private void AutoParseQuiz() {
-        while ((quizParseQueue.peek()!=null && (requestCounter.getCount()< MAX_REQUEST_COUNTER)))
-        {
-            EntityWithAuthData<QuizEntity> temp = quizParseQueue.poll();
-            assert temp != null;
-            getQuizAttemptsByQuizId(temp.getAuthData(),temp.getEntity());
-        }
 
-    }
 
-    @Scheduled(fixedDelay = 1000)
-    private void AutoParsePerson() {
-        while ((personParseQueue.peek()!=null && (requestCounter.getCount()< MAX_REQUEST_COUNTER)))
-        {
-            EntityWithAuthData<PersonEntity> temp = personParseQueue.poll();
-            assert temp != null;
-            parsePerson(temp.getEntity());
-        }
 
-    }
-
-    @Scheduled(fixedDelay = 1000)
-    private void AutoParseQuizAttempt() {
-        while ((quizAttemptParseEntity.peek()!=null && (requestCounter.getCount()< MAX_REQUEST_COUNTER)))
-        {
-            EntityWithAuthData<QuizAttemptEntity> temp = quizAttemptParseEntity.poll();
-            assert temp != null;
-            getQuizAttemptsQuestionsAndAnswers(temp.getAuthData(), temp.getEntity());
-        }
-
-    }
 
     private AuthData getJustAuthData(PersonEntity person) throws CantGetAuthoriseToken, CantGetPersonInfo, CantFindSessKey, CantParseMainDocument, EmptyAuthCookie {
         MoodleAuthToken moodleAuthToken = moodleService.getAuthTokenOld();
@@ -132,66 +110,80 @@ public class MoodleParser {
             PersonEntity personReturned = moodleDecryptor.getParsedPersonInfo(authData);
             personReturned.setToken(tokenGenerator.generateNewToken());
             personService.savePerson(personReturned);
-            EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>(personReturned, new AuthData());
-            personParseQueue.add(temp);
+
+            mainQueue.addToQueue(authData, personReturned);
             return personReturned;
+
+            // todo check if wrong password or username
+            // todo check if auth data is wrong
+
         } catch (CantGetPersonInfo | CantGetAuthoriseToken | CantFindSessKey | EmptyAuthCookie | CantParseMainDocument e) {
             throw new CantAuthoriseInMoodle("When authorise :" + e.getMessage());
         }
     }
 
-    private void parsePerson(PersonEntity person)
-    {
+    private AuthData manyTryAuth(PersonEntity person) {
         boolean successReceive = false;
         int missCounter = 0;
-        while(missCounter < 3 && !successReceive)
-        {
-            missCounter = missCounter+1;
+        AuthData authData = null;
+        while (missCounter < 3 && !successReceive) {
+            missCounter = missCounter + 1;
             try {
-                MoodleAuthToken moodleAuthToken = moodleService.getAuthTokenOld();
-                assert person != null;
-                Connection.Response respAuth = moodleService.getAuthDataOld(person, moodleAuthToken);
-                AuthData authData = moodleDecryptor.getParsedAuthData(person, respAuth);
+                authData = getJustAuthData(person);
                 successReceive = true;
-                moodleService.getRawCoursesList(authData).subscribe(data-> processingCourses(data, authData, person), error ->  errorProcessing(error, authData, person));
-                requestCounter.addItem(person);
-            }
-            catch (CantGetAuthoriseToken e) {
-                assert person != null;
-                logger.warn("Server can't response. Can't get AuthToken for person : "+person.getFullName());
-            }
-            catch (CantGetPersonInfo e){
-                logger.warn("Server can't response. Can't get AuthData for person : "+person.getFullName());
-            }
-            catch (CantFindSessKey | EmptyAuthCookie | CantParseMainDocument e)
-            {
-                logger.warn("Server can't response. Returned data is wrong : "+person.getFullName());
+            } catch (CantGetAuthoriseToken e) {
+                logger.warn("Server can't response. Can't get AuthToken for person : " + person.getFullName());
+            } catch (CantGetPersonInfo e) {
+                logger.warn("Server can't response. Can't get AuthData for person : " + person.getFullName());
+            } catch (CantFindSessKey | EmptyAuthCookie | CantParseMainDocument e) {
+                logger.warn("Server can't response. Returned data is wrong : " + person.getFullName());
             }
         }
-        if (!successReceive)
-        {
+        if (!successReceive) {
             logger.warn("Server can't response in 3 attempts");
         }
+        return authData;
     }
 
-    private void getQuizExerciseByCourseId(AuthData authData, CourseEntity courseEntity)
+    private void getDataBySuperEntity(EntityWithAuthData<SuperEntity> entityEntityWithAuthData)
     {
-        moodleService.getRawActivityInstances(authData, courseEntity.getId()).subscribe(data -> processingQuizExercise(data, authData, courseEntity), error ->  errorProcessing(error, authData, courseEntity));
-        requestCounter.addItem(courseEntity);
-    }
+        SuperEntity superEntity = entityEntityWithAuthData.getEntity();
+        requestCounter.addItem(superEntity);
+        Mono<String>  requestedData = null;
+        long ItemId = superEntity.getId();
+        AuthData authData = entityEntityWithAuthData.getAuthData();
+        switch (superEntity.getClass().getSimpleName())
+        {
+            case("CourseEntity"):
+                requestedData = moodleService.getRawActivityInstances(authData,ItemId);
+                break;
+            case("QuizEntity"):
+                requestedData = moodleService.getRawQuizAttempts(authData,ItemId);
+                break;
+            case("QuizAttemptEntity"):
+                requestedData = moodleService.getRawQuizAttemptsQuestionsAndAnswers(authData,ItemId);
+                break;
+            case("PersonEntity"):
 
-    private void getQuizAttemptsByQuizId(AuthData authData, QuizEntity quizEntity)
-    {
-        moodleService.getRawQuizAttempts(authData, quizEntity.getId()).subscribe(data -> processingQuizAttempts(data, authData, quizEntity), error ->  errorProcessing(error, authData, quizEntity));
-        requestCounter.addItem(quizEntity);
-    }
+                authData = manyTryAuth((PersonEntity) superEntity);
+                if (authData==null)
+                    mainQueue.addToQueue(null, superEntity);
+                else {
+                    entityEntityWithAuthData.setAuthData(authData);
+                    requestedData = moodleService.getRawCoursesList(authData);
+                }
+                break;
 
-    private void getQuizAttemptsQuestionsAndAnswers(AuthData authData, QuizAttemptEntity quizAttemptEntity)
-    {
-        moodleService.getRawQuizAttemptsQuestionsAndAnswers(authData, quizAttemptEntity.getId(), quizAttemptEntity.getQuizEntity().getId()).subscribe(data -> processingQuizAttemptsQuestionsAndAnswers(data, authData, quizAttemptEntity), error ->  errorProcessing(error, authData, quizAttemptEntity));
-        requestCounter.addItem(quizAttemptEntity);
-    }
+            default:
+                requestCounter.removeItem(superEntity);
+                break;
+        }
+        if (requestedData!=null)
+            requestedData.subscribe(data->processingAny(data, entityEntityWithAuthData),
+                    error ->  errorProcessing(error, entityEntityWithAuthData));
 
+
+    }
 
     private void processingQuizAttemptsQuestionsAndAnswers(String rawQuizAttemptQuestionsAndAnswers, AuthData authData, QuizAttemptEntity quizAttemptEntity)
     {
@@ -212,13 +204,12 @@ public class MoodleParser {
             courseService.saveAll(courseEntities);
             for (CourseEntity courseEntity:courseEntities)
             {
-                EntityWithAuthData<CourseEntity> temp = new EntityWithAuthData<>(courseEntity,authData);
-                courseParseQueue.add(temp);
+                mainQueue.addToQueue(authData, courseEntity);
             }
         } catch (ParseException e) {
             logger.warn("Error while parse raw courses list. Person with name :" + authData.getPersonEntity().getFullName());
-            EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>(authData.getPersonEntity(), new AuthData());
-            personParseQueue.add(temp);
+            mainQueue.addToQueue(authData,authData.getPersonEntity());
+
         }
     }
 
@@ -226,13 +217,13 @@ public class MoodleParser {
     {
         requestCounter.removeItem(quizEntity);
         Set<QuizAttemptEntity> quizAttemptEntities = moodleDecryptor.getParsedQuizAttempts(rawQuizAttempts);
+
         quizAttemptService.setManyQuiz(quizAttemptEntities, quizEntity);
         quizAttemptService.setManyPerson(quizAttemptEntities, authData.getPersonEntity());
         quizAttemptService.saveAll(quizAttemptEntities);
         for (QuizAttemptEntity quizAttemptEntity : quizAttemptEntities)
         {
-            EntityWithAuthData<QuizAttemptEntity> temp = new EntityWithAuthData<>(quizAttemptEntity,authData);
-            quizAttemptParseEntity.add(temp);
+            mainQueue.addToQueue(authData,quizAttemptEntity);
         }
     }
 
@@ -249,37 +240,44 @@ public class MoodleParser {
         exerciseService.saveAll(exerciseEntities);
         for (QuizEntity quizEntity:quizEntities)
         {
-            EntityWithAuthData<QuizEntity> temp = new EntityWithAuthData<>(quizEntity,authData);
-            quizParseQueue.add(temp);
+            mainQueue.addToQueue(authData,quizEntity);
+
         }
         for (ExerciseEntity exerciseEntity:exerciseEntities)
         {
-            EntityWithAuthData<ExerciseEntity> temp = new EntityWithAuthData<>(exerciseEntity,authData);
-            exerciseParseQueue.add(temp);
+            mainQueue.addToQueue(authData,exerciseEntity);
+
         }
     }
 
-    private <T extends SuperEntity> void errorProcessing(Throwable error, AuthData authData, T item)
+    private void processingAny(String data, EntityWithAuthData<SuperEntity> entityEntityWithAuthData)
     {
+        SuperEntity superEntity = entityEntityWithAuthData.getEntity();
+        AuthData authData = entityEntityWithAuthData.getAuthData();
+        switch (superEntity.getClass().getSimpleName())
+        {
+            case("QuizAttemptEntity"):
+                processingQuizAttemptsQuestionsAndAnswers(data,authData,(QuizAttemptEntity) superEntity);
+                break;
+            case("PersonEntity"):
+                processingCourses(data,authData,(PersonEntity) superEntity);
+                break;
+            case("QuizEntity"):
+                processingQuizAttempts(data,authData,(QuizEntity) superEntity);
+                break;
+            case("CourseEntity"):
+                processingQuizExercise(data,authData,(CourseEntity) superEntity);
+                break;
+        }
+    }
+
+    private void errorProcessing(Throwable error, EntityWithAuthData<SuperEntity> entityWithAuthData)
+    {
+        SuperEntity item = entityWithAuthData.getEntity();
+        AuthData authData = entityWithAuthData.getAuthData();
         requestCounter.removeItem(item);
-
         logger.warn(error.getMessage() +" : "+ item.getClass().getSimpleName()+ " " + item.getId()+ " " + authData.getPersonEntity().getFullName());
-        if (item.getClass().getName().equals("org.imjs_man.moodleParser.entity.dataBase.PersonEntity"))
-        {
-            EntityWithAuthData<PersonEntity> temp = new EntityWithAuthData<>((PersonEntity) item, authData);
-            personParseQueue.add(temp);
-        }
-        if (item.getClass().getName().equals("org.imjs_man.moodleParser.entity.dataBase.QuizEntity"))
-        {
-            EntityWithAuthData<QuizEntity> temp = new EntityWithAuthData<>((QuizEntity) item, authData);
-            quizParseQueue.add(temp);
-        }
-        if (item.getClass().getName().equals("org.imjs_man.moodleParser.entity.dataBase.CourseEntity"))
-        {
-            EntityWithAuthData<CourseEntity> temp = new EntityWithAuthData<>((CourseEntity) item, authData);
-            courseParseQueue.add(temp);
-        }
-
+        mainQueue.addToQueue(authData, item);
     }
 
 }

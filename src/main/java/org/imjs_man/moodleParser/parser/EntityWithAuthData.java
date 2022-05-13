@@ -7,14 +7,16 @@ public class EntityWithAuthData<T extends Comparable<T>> implements Comparable<E
     private T entity;
     private AuthData authData;
 
+    public EntityWithAuthData(AuthData authData, T entity) {
+        this.entity = entity;
+        this.authData = authData;
+    }
+
     @Override
     public int compareTo(EntityWithAuthData<T> o) {
         return entity.compareTo(o.getEntity());
     }
-    public EntityWithAuthData(T entity, AuthData authData) {
-        this.entity = entity;
-        this.authData = authData;
-    }
+
 
     public T getEntity() {
         return entity;

@@ -1,5 +1,6 @@
 package org.imjs_man.moodleParser.entity.dataBase;
 
+import com.google.gson.annotations.Expose;
 import com.vladmihalcea.hibernate.type.array.StringArrayType;
 import com.vladmihalcea.hibernate.type.array.IntArrayType;
 import org.hibernate.annotations.Type;
@@ -13,17 +14,20 @@ import javax.persistence.*;
         @TypeDef(name = "string-array", typeClass = StringArrayType.class),
         @TypeDef(name = "int-array", typeClass = IntArrayType.class)
 })
-public class ComparisonQuizQuestionEntity extends SuperEntity implements Comparable<ComparisonQuizQuestionEntity>{
+public class ComparisonQuizQuestionEntity extends SuperEntity{
 
     private int state;
     private double mark;
     private double maxMark;
+    @Expose()
     @Lob
     @Column(columnDefinition = "TEXT")
     private String name;
+    @Expose()
     @Type(type = "string-array")
     @Column(columnDefinition = "text[]")
     private String[] listOfQuestions;
+    @Expose()
     @Type(type = "string-array")
     @Column(columnDefinition = "text[]")
     private String[] listOfVariants;
@@ -38,10 +42,6 @@ public class ComparisonQuizQuestionEntity extends SuperEntity implements Compara
     @ManyToOne
     private QuizAttemptEntity quizAttemptEntity;
 
-    @Override
-    public int compareTo(ComparisonQuizQuestionEntity otherQuizQuestion) {
-        return Integer.compare((int)getId(), (int)otherQuizQuestion.getId());
-    }
 
     public double getMaxMark() {
         return maxMark;

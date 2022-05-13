@@ -22,6 +22,7 @@ public class PersonService {
     {
         PersonEntity newPerson = moodleParser.auth(authForm.getUsername(), authForm.getPassword());
         return newPerson.getToken();
+//        return "asdasd";
     }
     public String getTokenById(long id)
     {

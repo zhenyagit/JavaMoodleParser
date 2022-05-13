@@ -1,5 +1,6 @@
 package org.imjs_man.moodleParser.parser;
 
+import org.imjs_man.moodleParser.prettyTable.PrettyTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
@@ -20,7 +21,7 @@ public class RequestCounter {
     public synchronized <T extends SuperEntity> void addItem(T item)
     {
         ids.add(item.getId());
-        types.add(item.getClass().getName());
+        types.add(item.getClass().getSimpleName());
     }
 
     public Integer getCount()
@@ -44,7 +45,14 @@ public class RequestCounter {
     public synchronized <T extends SuperEntity> void removeItem(T item)
     {
         ids.remove(item.getId());
-        types.remove(item.getClass().getName());
+        types.remove(item.getClass().getSimpleName());
     }
 
+    public List<Long> getIds() {
+        return ids;
+    }
+
+    public List<String> getTypes() {
+        return types;
+    }
 }

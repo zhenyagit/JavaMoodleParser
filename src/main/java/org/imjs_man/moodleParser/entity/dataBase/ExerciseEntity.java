@@ -1,16 +1,19 @@
 package org.imjs_man.moodleParser.entity.dataBase;
 
+import com.google.gson.annotations.Expose;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
 
 import javax.persistence.*;
 import java.util.Set;
 
 @Entity
-public class ExerciseEntity extends SuperEntity implements Comparable<ExerciseEntity>{
+public class ExerciseEntity extends SuperEntity {
     private int maxAttempts;
+    @Expose()
     @Lob
     @Column(columnDefinition = "TEXT")
     private String exerciseText;
+    @Expose()
     private String name;
     private String href;
     @ManyToOne
@@ -18,10 +21,6 @@ public class ExerciseEntity extends SuperEntity implements Comparable<ExerciseEn
     @OneToMany(fetch = FetchType.EAGER)
     private Set<ExerciseAttemptEntity> exerciseAttemptEntityList;
 
-    @Override
-    public int compareTo(ExerciseEntity otherExercise) {
-        return Integer.compare((int)getId(), (int)otherExercise.getId());
-    }
     public CourseEntity getCourseEntity() {
         return courseEntity;
     }

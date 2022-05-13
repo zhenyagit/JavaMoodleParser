@@ -7,7 +7,7 @@ import java.util.Set;
 
 
 @Entity
-public class PersonEntity extends SuperEntity implements Comparable<PersonEntity>{
+public class PersonEntity extends SuperEntity{
     private String login;
     private String password;
     private String groupName;
@@ -19,13 +19,10 @@ public class PersonEntity extends SuperEntity implements Comparable<PersonEntity
     @ManyToMany(fetch = FetchType.EAGER)
     private Set<CourseEntity> courseEntityList;
 
-    @Override
-    public int compareTo(PersonEntity otherPerson) {
-        return Integer.compare((int)getId(), (int)otherPerson.getId());
-    }
     public PersonEntity() {
 
     }
+
 
     public String getFullName()
     {
