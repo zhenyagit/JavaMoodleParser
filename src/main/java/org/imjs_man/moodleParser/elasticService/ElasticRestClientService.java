@@ -28,6 +28,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 import static org.testng.AssertJUnit.assertEquals;
 
@@ -69,7 +70,7 @@ public class ElasticRestClientService {
         BulkRequest request = new BulkRequest();
         for(SuperEntity item:items) {
 
-            request.add(new IndexRequest(CourseEntity.class.getSimpleName().toLowerCase())
+            request.add(new IndexRequest(item.getClass().getSimpleName().toLowerCase())
                     .id(String.valueOf(item.getId()))
                     .source(gsonExpose.toJson(item), XContentType.JSON));
         }
@@ -79,7 +80,7 @@ public class ElasticRestClientService {
     public void indexObjectAsync(SuperEntity item)
     {
         BulkRequest request = new BulkRequest();
-        request.add(new IndexRequest(CourseEntity.class.getSimpleName().toLowerCase())
+        request.add(new IndexRequest(item.getClass().getSimpleName().toLowerCase())
                     .id(String.valueOf(item.getId()))
                     .source(gsonExpose.toJson(item), XContentType.JSON));
         simpleElasticClient.bulkAsync(request, RequestOptions.DEFAULT, getDefaultListener());

@@ -2,6 +2,7 @@ package org.imjs_man.moodleParser.parser;
 
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.search.SearchHit;
+import org.imjs_man.moodleParser.elasticService.ElasticRestClientService;
 import org.imjs_man.moodleParser.entity.dataBase.*;
 import org.imjs_man.moodleParser.entity.supporting.DifferentQuizQuestions;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
@@ -52,6 +53,9 @@ public class MoodleParser {
     MoodleDecryptor moodleDecryptor;
     @Autowired
     ComparisonQuizQuestionService comparasionQuizQuestionService;
+
+    @Autowired
+    ElasticRestClientService elasticRestClientService;
     // todo здесь сделаем такую штуку, вся хрень с сервиса в обертку
 
     private final RequestCounter requestCounter = new RequestCounter();
@@ -73,14 +77,7 @@ public class MoodleParser {
     public void addPersonsToQueue() throws CantFindSessKey, CantParseMainDocument, EmptyAuthCookie, CantGetPersonInfo, CantGetAuthoriseToken {
         for (PersonEntity person : personService.getPersonsToParse()) {
             mainQueue.addToQueue(null,person);
-//            personParseQueue.add(temp);
-
-//                AuthData authData = getJustAuthData(person);
-//                QuizAttemptEntity quizAttemptEntity = quizAttemptService.getById(2699624);
-//                EntityWithAuthData<QuizAttemptEntity> temp = new EntityWithAuthData<>(quizAttemptEntity, authData);
-//                quizAttemptParseEntity.add(temp);
             logger.info("Person added to queue : "+ person.getFullName());
-
         }
     }
 
@@ -187,13 +184,14 @@ public class MoodleParser {
 
     private void processingQuizAttemptsQuestionsAndAnswers(String rawQuizAttemptQuestionsAndAnswers, AuthData authData, QuizAttemptEntity quizAttemptEntity)
     {
-//        System.out.println(rawQuizAttemptQuestionsAndAnswers);
         requestCounter.removeItem(quizAttemptEntity);
         DifferentQuizQuestions differentQuizQuestions = moodleDecryptor.getParsedQuizAttemptsQuestionsAndAnswers(rawQuizAttemptQuestionsAndAnswers);
         ArrayList<ComparisonQuizQuestionEntity> tempComparasion = differentQuizQuestions.getComparisonQuizQuestions();
         comparasionQuizQuestionService.setManyQuizAttempt(tempComparasion, quizAttemptEntity);
         comparasionQuizQuestionService.setManyPerson(tempComparasion, authData.getPersonEntity());
         comparasionQuizQuestionService.saveAll(tempComparasion);
+        ArrayList<SuperEntity> toElastic = new ArrayList<>(tempComparasion);
+        elasticRestClientService.indexObjectAsync(toElastic);
     }
 
     private void processingCourses(String rawCourses, AuthData authData, PersonEntity personEntity)
@@ -202,6 +200,8 @@ public class MoodleParser {
         try {
             ArrayList<CourseEntity> courseEntities = moodleDecryptor.getParsedCoursesList(rawCourses);
             courseService.saveAll(courseEntities);
+            ArrayList<SuperEntity> toElastic = new ArrayList<>(courseEntities);
+            elasticRestClientService.indexObjectAsync(toElastic);
             for (CourseEntity courseEntity:courseEntities)
             {
                 mainQueue.addToQueue(authData, courseEntity);
@@ -221,6 +221,8 @@ public class MoodleParser {
         quizAttemptService.setManyQuiz(quizAttemptEntities, quizEntity);
         quizAttemptService.setManyPerson(quizAttemptEntities, authData.getPersonEntity());
         quizAttemptService.saveAll(quizAttemptEntities);
+        ArrayList<SuperEntity> toElastic = new ArrayList<>(quizAttemptEntities);
+        elasticRestClientService.indexObjectAsync(toElastic);
         for (QuizAttemptEntity quizAttemptEntity : quizAttemptEntities)
         {
             mainQueue.addToQueue(authData,quizAttemptEntity);
@@ -238,6 +240,9 @@ public class MoodleParser {
         quizService.saveAll(quizEntities);
         exerciseService.setManyParent(exerciseEntities, courseEntity);
         exerciseService.saveAll(exerciseEntities);
+        ArrayList<SuperEntity> toElastic = new ArrayList<>(quizEntities);
+        toElastic.addAll(exerciseEntities);
+        elasticRestClientService.indexObjectAsync(toElastic);
         for (QuizEntity quizEntity:quizEntities)
         {
             mainQueue.addToQueue(authData,quizEntity);
