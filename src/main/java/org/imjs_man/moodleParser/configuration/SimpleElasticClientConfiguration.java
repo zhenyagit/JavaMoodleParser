@@ -6,9 +6,11 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -52,15 +54,17 @@ public class SimpleElasticClientConfiguration {
     @Bean
     public RestHighLevelClient simpleElasticClient() throws Exception {
         try {
-            final CredentialsProvider credentialsProvider =
-                    new BasicCredentialsProvider();
+            final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,
                     new UsernamePasswordCredentials(username,password));
-            SSLContextBuilder sslBuilder = SSLContexts.custom()
-                    .loadTrustMaterial(null, (x509Certificates, s) -> true);
-            final SSLContext sslContext = sslBuilder.build();
             return new RestHighLevelClient(RestClient
-                    .builder(new HttpHost(hostname, 9200, "http")));
+                    .builder(new HttpHost(hostname, 9200, "http"))
+                    .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+                        @Override
+                        public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+                            return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+                        }
+                    }));
         } catch (Exception e) {
             throw new Exception("Could not create an elasticsearch client!!");
         }

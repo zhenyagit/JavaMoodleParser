@@ -15,6 +15,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.imjs_man.moodleParser.entity.dataBase.CourseEntity;
 import org.imjs_man.moodleParser.entity.supporting.SuperEntity;
@@ -56,7 +57,6 @@ public class ElasticRestClientService {
 
             @Override
             public void onFailure(Exception e) {
-
             }
         };
     }
@@ -98,6 +98,21 @@ public class ElasticRestClientService {
             sourceBuilder.query(QueryBuilders.queryStringQuery(query));
         searchRequest.source(sourceBuilder);
         return simpleElasticClient.searchAsync(searchRequest, RequestOptions.DEFAULT, actionListener);  // it may be canceled by
+    }
+    public SearchHits findByQuerySync(String index,String query) throws Exception {
+        return findByQuerySync(index,query, false);
+    }
+    public SearchHits findByQuerySync(String index,String query, boolean fuzzyQuery) throws Exception {
+        SearchRequest searchRequest = new SearchRequest(index);             // index where searching
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();      // all parameters there
+        if (fuzzyQuery)
+            sourceBuilder.query(QueryBuilders.queryStringQuery(query+"~")); // ~ mean fuzzy search
+        else
+            sourceBuilder.query(QueryBuilders.queryStringQuery(query));
+        searchRequest.source(sourceBuilder);
+        SearchResponse searchResponse = simpleElasticClient.search(searchRequest, RequestOptions.DEFAULT);
+        return searchResponse.getHits();
+
     }
 
 
@@ -144,6 +159,7 @@ public class ElasticRestClientService {
                 System.out.println("Some error occurred  " +e.getMessage());
             }
         };
+
         for (String query:queries)
         {
             System.out.println(query);
@@ -151,6 +167,14 @@ public class ElasticRestClientService {
             Cancellable c = findByQueryAsync(CourseEntity.class.getSimpleName().toLowerCase(), query, actionListener);
             //          System.out.println("------------- Time: "+(System.currentTimeMillis() - startTime)+"--------------");
             Thread.sleep(1500);
+        }
+    }
+
+    @Test
+    public void syncSearch() throws Exception {
+        for (SearchHit hit: findByQuerySync("_all","Всероссийский~"))
+        {
+            System.out.println(hit.getSourceAsString());
         }
     }
 

@@ -53,24 +53,16 @@ public class MoodleParser {
     MoodleDecryptor moodleDecryptor;
     @Autowired
     ComparisonQuizQuestionService comparasionQuizQuestionService;
-
     @Autowired
     ElasticRestClientService elasticRestClientService;
+
     // todo здесь сделаем такую штуку, вся хрень с сервиса в обертку
 
     private final RequestCounter requestCounter = new RequestCounter();
-//    private final PriorityQueue<EntityWithAuthData<CourseEntity>> courseParseQueue = new PriorityQueue<>();
-//    private final PriorityQueue<EntityWithAuthData<QuizEntity>> quizParseQueue = new PriorityQueue<>();
-//    private final PriorityQueue<EntityWithAuthData<ExerciseEntity>> exerciseParseQueue = new PriorityQueue<>();
-//    private final PriorityQueue<EntityWithAuthData<PersonEntity>> personParseQueue = new PriorityQueue<>();
-//    private final PriorityQueue<EntityWithAuthData<QuizAttemptEntity>> quizAttemptParseEntity = new PriorityQueue<>();
     private final SuperEntityQueue mainQueue = new SuperEntityQueue();
-//    private final PriorityQueue<EntityWithAuthData<SuperEntity>> mainQueue = new PriorityQueue<>();
     private static final Logger logger = LoggerFactory.getLogger(MoodleParser.class);
 
     private static final int MAX_REQUEST_COUNTER = 20;
-
-
 
 
     @EventListener(ApplicationReadyEvent.class)
@@ -81,7 +73,6 @@ public class MoodleParser {
         }
     }
 
-
     @Scheduled(fixedDelay = 1000)
     private void autoParseAll() throws NoItemInQueue {
         while(!mainQueue.isEmpty() && (requestCounter.getCount()< MAX_REQUEST_COUNTER))
@@ -89,9 +80,6 @@ public class MoodleParser {
             getDataBySuperEntity(mainQueue.getFromQueue());
         }
     }
-
-
-
 
 
     private AuthData getJustAuthData(PersonEntity person) throws CantGetAuthoriseToken, CantGetPersonInfo, CantFindSessKey, CantParseMainDocument, EmptyAuthCookie {
@@ -107,7 +95,6 @@ public class MoodleParser {
             PersonEntity personReturned = moodleDecryptor.getParsedPersonInfo(authData);
             personReturned.setToken(tokenGenerator.generateNewToken());
             personService.savePerson(personReturned);
-
             mainQueue.addToQueue(authData, personReturned);
             return personReturned;
 
@@ -170,7 +157,6 @@ public class MoodleParser {
                     requestedData = moodleService.getRawCoursesList(authData);
                 }
                 break;
-
             default:
                 requestCounter.removeItem(superEntity);
                 break;
@@ -178,8 +164,27 @@ public class MoodleParser {
         if (requestedData!=null)
             requestedData.subscribe(data->processingAny(data, entityEntityWithAuthData),
                     error ->  errorProcessing(error, entityEntityWithAuthData));
+    }
 
-
+    private void processingAny(String data, EntityWithAuthData<SuperEntity> entityEntityWithAuthData)
+    {
+        SuperEntity superEntity = entityEntityWithAuthData.getEntity();
+        AuthData authData = entityEntityWithAuthData.getAuthData();
+        switch (superEntity.getClass().getSimpleName())
+        {
+            case("QuizAttemptEntity"):
+                processingQuizAttemptsQuestionsAndAnswers(data,authData,(QuizAttemptEntity) superEntity);
+                break;
+            case("PersonEntity"):
+                processingCourses(data,authData,(PersonEntity) superEntity);
+                break;
+            case("QuizEntity"):
+                processingQuizAttempts(data,authData,(QuizEntity) superEntity);
+                break;
+            case("CourseEntity"):
+                processingQuizExercise(data,authData,(CourseEntity) superEntity);
+                break;
+        }
     }
 
     private void processingQuizAttemptsQuestionsAndAnswers(String rawQuizAttemptQuestionsAndAnswers, AuthData authData, QuizAttemptEntity quizAttemptEntity)
@@ -252,27 +257,6 @@ public class MoodleParser {
         {
             mainQueue.addToQueue(authData,exerciseEntity);
 
-        }
-    }
-
-    private void processingAny(String data, EntityWithAuthData<SuperEntity> entityEntityWithAuthData)
-    {
-        SuperEntity superEntity = entityEntityWithAuthData.getEntity();
-        AuthData authData = entityEntityWithAuthData.getAuthData();
-        switch (superEntity.getClass().getSimpleName())
-        {
-            case("QuizAttemptEntity"):
-                processingQuizAttemptsQuestionsAndAnswers(data,authData,(QuizAttemptEntity) superEntity);
-                break;
-            case("PersonEntity"):
-                processingCourses(data,authData,(PersonEntity) superEntity);
-                break;
-            case("QuizEntity"):
-                processingQuizAttempts(data,authData,(QuizEntity) superEntity);
-                break;
-            case("CourseEntity"):
-                processingQuizExercise(data,authData,(CourseEntity) superEntity);
-                break;
         }
     }
 
