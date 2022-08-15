@@ -6,7 +6,10 @@ import org.springframework.web.bind.annotation.*;
 
 @Controller
 public class WebPageController {
-
+    @RequestMapping(value = { "/" }, method = RequestMethod.GET)
+    public String showRoot() {
+        return "root";
+    }
     @RequestMapping(value = { "/admin" }, method = RequestMethod.GET)
     public String showAdminPanel() {
         return "adminPanel";
