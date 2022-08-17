@@ -1,0 +1,34 @@
+kind: pipeline
+name: full_deploy
+type: docker
+
+steps:
+  - name: package
+    image: maven:3-jdk-10
+    commands:
+      - mvn package -f pom.xml
+
+  - name: build_publish
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: DOCKER_USERNAME
+      password:
+        from_secret: DOCKER_PASSWORD
+      repo: imjsman/moodle_parser_app
+      tags: latest
+      dockerfile: Dockerfile
+
+  - name: deploy
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        - darkhan.fun
+      username: zhenya
+      password:
+        from_secret: SERVER_PASSWORD
+      port: 22
+      script:
+        - docker-compose  -f ~/Documents/moodle_parser/docker-compose.yml pull
+        - docker-compose  -f ~/Documents/moodle_parser/docker-compose.yml up -d
+        - docker image prune -a -f

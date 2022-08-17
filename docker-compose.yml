@@ -1,0 +1,41 @@
+version: '3.0'
+services:
+  postgres:
+    image: postgres:14.3
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_pass
+      - POSTGRES_DB=postgres_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  elastic:
+    image: elasticsearch:7.1.0
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=elastic_pass
+    volumes:
+      - eldata:/usr/share/elasticsearch/data
+
+  parser:
+    depends_on:
+      - postgres
+      - elastic
+    image: imjsman/moodle_parser_app:latest
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=postgres_db
+      - DB_U_NAME=postgres
+      - DB_U_PASS=postgres_pass
+      - EL_U_NAME=elastic
+      - EL_U_PASS=elastic_pass
+      - EL_HOSTNAME=elastic
+
+volumes:
+  pgdata:
+  eldata:
